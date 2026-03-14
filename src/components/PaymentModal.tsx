@@ -15,9 +15,10 @@ interface PaymentModalProps {
 
 export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess }: PaymentModalProps) => {
   const [amount, setAmount] = useState(initialAmount);
-  const [step, setStep] = useState<'amount' | 'method' | 'qr' | 'processing' | 'success'>('amount');
+  const [step, setStep] = useState<'amount' | 'method' | 'qr' | 'verify' | 'processing' | 'success'>('amount');
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [utr, setUtr] = useState('');
 
   const handleProceed = () => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
@@ -48,19 +49,13 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
 
       window.location.href = deepLink;
       
-      setStep('processing');
-      setTimeout(() => {
-        handlePaymentComplete(methodName);
-      }, 5000);
+      setStep('verify');
     } else {
-      setStep('processing');
-      setTimeout(() => {
-        handlePaymentComplete(methodName);
-      }, 2000);
+      setStep('verify');
     }
   };
 
-  const handlePaymentComplete = async (methodName: string = 'QR Code') => {
+  const handlePaymentComplete = async (methodName: string = 'QR Code', utrNumber?: string) => {
     if (!auth.currentUser) return;
     setIsProcessing(true);
     
@@ -89,6 +84,7 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
         amount: addedAmount,
         balance: newBalance,
         isCredit: true,
+        utr: utrNumber || null,
         timestamp: new Date()
       });
       
@@ -108,6 +104,7 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
   const resetAndClose = () => {
     setStep('amount');
     setSelectedMethod(null);
+    setUtr('');
     onClose();
   };
 
@@ -278,11 +275,57 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
 
                   <div className="w-full space-y-3">
                     <button 
-                      onClick={() => handlePaymentComplete('QR Code')}
+                      onClick={() => setStep('verify')}
                       disabled={isProcessing}
                       className="w-full bg-white text-black font-medium text-sm py-4 hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {isProcessing ? 'Verifying...' : 'Confirm Payment'}
+                      I have made the payment
+                    </button>
+                    
+                    <button 
+                      onClick={() => setStep('method')}
+                      className="w-full py-3 text-xs font-mono text-zinc-500 hover:text-white transition-colors uppercase tracking-widest"
+                    >
+                      Cancel / Go Back
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 'verify' && (
+                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                  <div className="text-center space-y-2 w-full border-b border-zinc-800 pb-6">
+                    <p className="text-xs font-mono text-zinc-500 uppercase tracking-widest mb-2">Payment Verification</p>
+                    <h3 className="text-xl font-light text-white font-mono">Enter UTR Number</h3>
+                    <p className="text-sm text-zinc-400">Please enter the 12-digit reference number to confirm your payment of ₹{amount}.00</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-xs font-mono text-zinc-500 uppercase tracking-widest">UTR / Reference No.</label>
+                    <div className="relative flex items-center border border-zinc-800 bg-black focus-within:border-zinc-500 transition-colors">
+                      <input 
+                        type="text" 
+                        value={utr}
+                        onChange={(e) => setUtr(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                        className="w-full bg-transparent py-4 px-4 text-lg font-light text-white focus:outline-none font-mono tracking-widest"
+                        placeholder="123456789012"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="w-full space-y-3 pt-4">
+                    <button 
+                      onClick={() => {
+                        if (utr.length !== 12) {
+                          alert("Please enter a valid 12-digit UTR number");
+                          return;
+                        }
+                        setStep('processing');
+                        setTimeout(() => handlePaymentComplete(selectedMethod || 'UPI', utr), 2000);
+                      }}
+                      className="w-full bg-white text-black font-medium text-sm py-4 hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 uppercase tracking-wider"
+                    >
+                      Verify Payment
                     </button>
                     
                     <button 
