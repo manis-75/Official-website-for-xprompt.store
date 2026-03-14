@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users collection
+    match /users/{userId} {
+      // User can read their own data
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // User can create their own profile
+      allow create: if request.auth != null && request.auth.uid == userId;
+      // User can update their own profile (e.g., walletBalance)
+      allow update: if request.auth != null && request.auth.uid == userId;
+      // Only Admin can delete anyone
+      allow delete: if isAdmin();
+      
+      match /purchases/{purchaseId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      match /transactions/{transactionId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Category collections
+    match /{collectionName}/{imageId} {
+      // Explicitly ignore users collection to avoid any overlapping rule issues
+      allow read: if collectionName != 'users';
+      allow create, update, delete: if collectionName != 'users' && isAdmin();
+    }
+
+    // Helper function to check if the user is an admin
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.email == "mithunk9857t@gmail.com" ||
+        request.auth.token.email == "k.mantu9004@gmail.com" ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin")
+      );
+    }
+  }
+}
+
