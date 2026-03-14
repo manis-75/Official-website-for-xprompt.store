@@ -86,7 +86,7 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
     }
   };
 
-  const handleDirectPaymentSuccess = async () => {
+  const handleWalletPayment = async () => {
     if (!auth.currentUser) return;
     setIsProcessingPayment(true);
     
@@ -98,22 +98,38 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
       if (userSnap.exists()) {
         currentBalance = userSnap.data().walletBalance || 0;
       }
+
+      if (currentBalance < price) {
+        alert(`Insufficient wallet balance. You need ₹${price} but have ₹${currentBalance}. Please add funds to your wallet first.`);
+        setIsProcessingPayment(false);
+        return;
+      }
+
+      const newBalance = currentBalance - price;
+
+      // Update wallet balance
+      await setDoc(userRef, {
+        walletBalance: newBalance
+      }, { merge: true });
       
       // Add transaction record
       await addDoc(collection(db, 'users', auth.currentUser.uid, 'transactions'), {
-        title: `Direct Purchase: ${image.title}`,
+        title: `Purchased: ${image.title}`,
         date: new Date().toLocaleString(),
         type: 'purchase',
         amount: -price,
-        balance: currentBalance,
+        balance: newBalance,
         isCredit: false,
         timestamp: new Date(),
-        paymentMethod: 'UPI QR'
+        paymentMethod: 'Wallet'
       });
       
+      // Remove undefined values from image to prevent Firestore errors
+      const cleanImage = Object.fromEntries(Object.entries(image).filter(([_, v]) => v !== undefined));
+
       // Save to Library
       await setDoc(doc(db, 'users', auth.currentUser.uid, 'purchases', image.id), {
-        ...image,
+        ...cleanImage,
         purchasedAt: new Date().toISOString()
       });
 
@@ -121,7 +137,7 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
       const targetCollection = image.collection || activeTab || systemType;
       
       const purchaseData = {
-        ...image,
+        ...cleanImage,
         isPurchasedBySomeone: true,
         purchasedAt: new Date().toISOString(),
         sales: newSales
@@ -169,7 +185,7 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
 
   const handleActionClick = () => {
     if (price > 0 && !isPaid) {
-      setShowQR(true);
+      handleWalletPayment();
     } else {
       handleDownload();
     }
@@ -312,11 +328,11 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
                   <p className="text-zinc-400 text-sm">Pay ₹{price} to unlock the generation prompt, variable prompt, and download the media.</p>
                 </div>
                 <button 
-                  onClick={() => setShowQR(true)} 
+                  onClick={handleWalletPayment} 
                   disabled={isProcessingPayment}
                   className="relative z-10 mt-2 bg-white/10 hover:bg-white/20 text-white py-2 px-6 rounded-lg text-sm font-medium transition-colors"
                 >
-                  {isProcessingPayment ? 'Processing...' : `Pay ₹${price} to Unlock`}
+                  {isProcessingPayment ? 'Processing...' : `Pay ₹${price} from Wallet`}
                 </button>
               </div>
             ) : (
@@ -358,52 +374,6 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
         </div>
       </motion.div>
 
-      {/* QR Code Overlay */}
-      <AnimatePresence>
-        {showQR && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col items-center p-6 relative"
-            >
-              <button 
-                onClick={() => setShowQR(false)} 
-                className="absolute top-4 right-4 text-zinc-400 hover:text-white transition-colors"
-              >
-                <X size={20} />
-              </button>
-              
-              <div className="text-center space-y-2 mb-6 mt-2">
-                <h3 className="text-xl font-bold text-white">Scan to Pay ₹{price}</h3>
-                <p className="text-sm text-zinc-400">Use any UPI app (PhonePe, GPay, Paytm) to unlock this item.</p>
-              </div>
-              
-              <div className="bg-white p-4 rounded-xl mb-6">
-                <img 
-                  src="https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg" 
-                  alt="UPI QR Code" 
-                  className="w-48 h-48 object-contain"
-                />
-              </div>
-
-              <button 
-                onClick={handleDirectPaymentSuccess}
-                disabled={isProcessingPayment}
-                className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-500 transition-colors flex items-center justify-center disabled:opacity-50"
-              >
-                {isProcessingPayment ? 'Verifying Payment...' : 'I have paid'}
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

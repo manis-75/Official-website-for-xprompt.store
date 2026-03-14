@@ -24,10 +24,12 @@ interface AccountDetailsProps {
 }
 
 export const AccountDetails: React.FC<AccountDetailsProps> = ({ 
-  user, onNavigate, galleryCount = 0, gallery = [] 
+  user, onNavigate, galleryCount = 0, gallery: propGallery = [] 
 }) => {
   const [balance, setBalance] = useState(0);
   const [totalSpent, setTotalSpent] = useState(0);
+  const [gallery, setGallery] = useState<GalleryItem[]>(propGallery);
+  const [fetchedGalleryCount, setFetchedGalleryCount] = useState(galleryCount);
 
   useEffect(() => {
     const fetchWalletData = async () => {
@@ -61,6 +63,28 @@ export const AccountDetails: React.FC<AccountDetailsProps> = ({
         console.error("Error fetching transactions:", error);
         handleFirestoreError(error, OperationType.LIST, `users/${auth.currentUser?.uid}/transactions`);
       }
+
+      try {
+        const q = query(
+          collection(db, 'users', auth.currentUser.uid, 'purchases'),
+          orderBy('purchasedAt', 'desc')
+        );
+        const querySnapshot = await getDocs(q);
+        const fetchedImages: GalleryItem[] = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          fetchedImages.push({ 
+            id: doc.id, 
+            prompt: data.prompt || 'Generated Image',
+            source: data.source,
+            timestamp: data.purchasedAt
+          });
+        });
+        setGallery(fetchedImages);
+        setFetchedGalleryCount(fetchedImages.length);
+      } catch (error) {
+        console.error("Error fetching gallery:", error);
+      }
     };
 
     fetchWalletData();
@@ -68,7 +92,7 @@ export const AccountDetails: React.FC<AccountDetailsProps> = ({
 
   const stats = [
     { label: 'Balance', value: `₹ ${balance.toFixed(2)}`, icon: <SparklesIcon className="w-5 h-5" />, action: 'Top up →', view: 'Wallet' },
-    { label: 'Total Jobs', value: galleryCount.toString(), icon: <ImageIcon className="w-5 h-5" />, action: 'Gallery →', view: 'Library' },
+    { label: 'Total Jobs', value: fetchedGalleryCount.toString(), icon: <ImageIcon className="w-5 h-5" />, action: 'Gallery →', view: 'Library' },
     { label: 'Success Rate', value: '100%', icon: <SignalIcon className="w-5 h-5" />, progress: 100 },
     { label: 'Total Spent', value: `₹ ${totalSpent.toFixed(2)}`, icon: <SparklesIcon className="w-5 h-5" /> },
   ];
@@ -168,7 +192,7 @@ export const AccountDetails: React.FC<AccountDetailsProps> = ({
                     </div>
                   </div>
                   <span className="text-xs text-zinc-500 font-medium">
-                    {item.timestamp?.seconds ? new Date(item.timestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
+                    {item.timestamp ? new Date(item.timestamp as any).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
                   </span>
                 </div>
               ))}
@@ -185,11 +209,13 @@ export const AccountDetails: React.FC<AccountDetailsProps> = ({
           <div className="p-8 rounded-[32px] bg-zinc-900 border border-white/10 shadow-sm min-h-[300px] flex flex-col">
             <h2 className="text-xl font-black tracking-tighter mb-8">Most Used Tools</h2>
             <div className="flex-1 space-y-6">
-              {['AI Influencer', 'Ad Studio', 'Thumbnail'].map((tool) => {
+              {['AI Influencer', 'Ad Studio', 'YouTube Thumbnail', 'Logo Generator', 'Icon Assets'].map((tool) => {
                 const getToolSource = (t: string) => {
                   if (t === 'AI Influencer') return 'Model';
                   if (t === 'Ad Studio') return 'AddImage';
-                  if (t === 'Thumbnail') return 'YoutubeThumbnail';
+                  if (t === 'YouTube Thumbnail') return 'YoutubeThumbnail';
+                  if (t === 'Logo Generator') return 'IconImage';
+                  if (t === 'Icon Assets') return 'IconImage';
                   return t;
                 };
                 const count = gallery.filter(i => i.source === getToolSource(tool)).length;
@@ -206,12 +232,6 @@ export const AccountDetails: React.FC<AccountDetailsProps> = ({
                   </div>
                 );
               })}
-              {gallery.length === 0 && (
-                <div className="h-full flex flex-col items-center justify-center text-zinc-500">
-                  <SignalIcon className="w-12 h-12 mb-4 opacity-20" />
-                  <p className="font-bold text-center">Usage stats will appear here</p>
-                </div>
-              )}
             </div>
           </div>
         </div>
