@@ -49,11 +49,10 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
 
       window.location.href = deepLink;
       
-      // Auto-simulate payment completion after returning for mobile deep links (No UTR required)
-      setStep('processing');
+      // After redirecting to the app, show the verify step so they can enter UTR when they return
       setTimeout(() => {
-        handlePaymentComplete(methodName);
-      }, 8000);
+        setStep('verify');
+      }, 1000);
     } else {
       setStep('verify');
     }
