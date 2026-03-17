@@ -2,8 +2,28 @@ import React, { useState } from 'react';
 import { 
   User, Phone, Lock, Check, 
   Loader2, Eye, EyeOff, Save,
-  Settings as SettingsIcon, X
+  Settings as SettingsIcon, X, ChevronDown
 } from 'lucide-react';
+
+const COUNTRY_CODES = [
+  { code: '+971', country: 'AE' }, { code: '+54', country: 'AR' }, { code: '+43', country: 'AT' },
+  { code: '+61', country: 'AU' }, { code: '+880', country: 'BD' }, { code: '+32', country: 'BE' },
+  { code: '+55', country: 'BR' }, { code: '+1', country: 'CA' }, { code: '+41', country: 'CH' },
+  { code: '+56', country: 'CL' }, { code: '+86', country: 'CN' }, { code: '+57', country: 'CO' },
+  { code: '+49', country: 'DE' }, { code: '+45', country: 'DK' }, { code: '+20', country: 'EG' },
+  { code: '+34', country: 'ES' }, { code: '+358', country: 'FI' }, { code: '+33', country: 'FR' },
+  { code: '+44', country: 'GB' }, { code: '+62', country: 'ID' }, { code: '+353', country: 'IE' },
+  { code: '+91', country: 'IN' }, { code: '+39', country: 'IT' }, { code: '+81', country: 'JP' },
+  { code: '+254', country: 'KE' }, { code: '+82', country: 'KR' }, { code: '+94', country: 'LK' },
+  { code: '+95', country: 'MM' }, { code: '+52', country: 'MX' }, { code: '+60', country: 'MY' },
+  { code: '+234', country: 'NG' }, { code: '+31', country: 'NL' }, { code: '+47', country: 'NO' },
+  { code: '+977', country: 'NP' }, { code: '+64', country: 'NZ' }, { code: '+51', country: 'PE' },
+  { code: '+63', country: 'PH' }, { code: '+92', country: 'PK' }, { code: '+48', country: 'PL' },
+  { code: '+351', country: 'PT' }, { code: '+7', country: 'RU' }, { code: '+966', country: 'SA' },
+  { code: '+46', country: 'SE' }, { code: '+65', country: 'SG' }, { code: '+66', country: 'TH' },
+  { code: '+90', country: 'TR' }, { code: '+1', country: 'US' }, { code: '+58', country: 'VE' },
+  { code: '+84', country: 'VN' }, { code: '+27', country: 'ZA' }
+].sort((a, b) => a.country.localeCompare(b.country));
 
 interface SettingsProps {
   user: any;
@@ -20,7 +40,10 @@ export const Settings: React.FC<SettingsProps> = ({ user }) => {
 
   // Mobile Verification State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [mobileNumber, setMobileNumber] = useState('8103094197');
+  const [mobileNumber, setMobileNumber] = useState('');
+  const [countryCode, setCountryCode] = useState('+91');
+  const [tempMobileNumber, setTempMobileNumber] = useState('');
+  const [tempCountryCode, setTempCountryCode] = useState('+91');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [step, setStep] = useState<'enter-number' | 'enter-otp'>('enter-number');
   const [isSendingOtp, setIsSendingOtp] = useState(false);
@@ -64,7 +87,7 @@ export const Settings: React.FC<SettingsProps> = ({ user }) => {
   };
 
   const handleSendOtp = async () => {
-    if (!mobileNumber || mobileNumber.length < 10) {
+    if (!tempMobileNumber || tempMobileNumber.length < 5) {
       alert('Please enter a valid mobile number');
       return;
     }
@@ -74,6 +97,11 @@ export const Settings: React.FC<SettingsProps> = ({ user }) => {
     setIsSendingOtp(false);
     setStep('enter-otp');
     startResendTimer();
+    
+    // Show mock OTP for testing purposes
+    setTimeout(() => {
+      alert(`TESTING MODE: Your mock OTP is 123456\n\n(Note: Real SMS requires a paid service like Twilio or Fast2SMS)`);
+    }, 500);
   };
 
   const handleResendOtp = async () => {
@@ -83,7 +111,11 @@ export const Settings: React.FC<SettingsProps> = ({ user }) => {
     await new Promise(resolve => setTimeout(resolve, 1000));
     setIsSendingOtp(false);
     startResendTimer();
-    alert('OTP resent successfully!');
+    
+    // Show mock OTP for testing purposes
+    setTimeout(() => {
+      alert(`TESTING MODE: Your mock OTP is 123456\n\n(Note: Real SMS requires a paid service like Twilio or Fast2SMS)`);
+    }, 500);
   };
 
   const handleVerifyOtp = async () => {
@@ -92,10 +124,19 @@ export const Settings: React.FC<SettingsProps> = ({ user }) => {
       alert('Please enter a 6-digit OTP');
       return;
     }
+    
+    // In testing mode, accept any 6 digit OTP, but let's enforce 123456 if we told them that
+    if (otpValue !== '123456') {
+      alert('Invalid OTP. Please enter 123456 for testing.');
+      return;
+    }
+
     setIsVerifyingOtp(true);
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500));
     setIsVerifyingOtp(false);
+    setMobileNumber(tempMobileNumber);
+    setCountryCode(tempCountryCode);
     alert('Mobile number verified successfully!');
     setIsModalOpen(false);
     setStep('enter-number');
@@ -200,17 +241,30 @@ export const Settings: React.FC<SettingsProps> = ({ user }) => {
 
           <div className="flex items-center justify-between p-4 bg-zinc-800 rounded-2xl border border-zinc-700">
             <div className="space-y-1">
-              <p className="text-lg font-bold text-white">+91 {mobileNumber}</p>
-              <div className="flex items-center gap-1.5 text-emerald-500">
-                <Check className="w-3.5 h-3.5" />
-                <span className="text-[11px] font-bold uppercase tracking-wider">Verified</span>
-              </div>
+              {mobileNumber ? (
+                <>
+                  <p className="text-lg font-bold text-white">{countryCode} {mobileNumber}</p>
+                  <div className="flex items-center gap-1.5 text-emerald-500">
+                    <Check className="w-3.5 h-3.5" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider">Verified</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-lg font-bold text-zinc-500">No number added</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Unverified</p>
+                </>
+              )}
             </div>
             <button 
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => {
+                setTempMobileNumber(mobileNumber);
+                setTempCountryCode(countryCode);
+                setIsModalOpen(true);
+              }}
               className="px-4 py-2 bg-zinc-700 border border-zinc-600 rounded-xl font-bold text-xs shadow-sm hover:bg-zinc-600 transition-all text-white"
             >
-              Change Number
+              {mobileNumber ? 'Change Number' : 'Add Number'}
             </button>
           </div>
         </div>
@@ -248,22 +302,33 @@ export const Settings: React.FC<SettingsProps> = ({ user }) => {
                     <div className="space-y-2">
                       <label className="text-sm font-bold text-zinc-300">Mobile Number</label>
                       <div className="flex gap-2">
-                        <div className="px-4 py-3.5 bg-zinc-800 border border-zinc-700 rounded-2xl text-zinc-400 font-bold">
-                          +91
+                        <div className="relative">
+                          <select
+                            value={tempCountryCode}
+                            onChange={(e) => setTempCountryCode(e.target.value)}
+                            className="appearance-none pl-4 pr-10 py-3.5 bg-zinc-800 border border-zinc-700 rounded-2xl text-zinc-300 font-bold outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all h-full cursor-pointer"
+                          >
+                            {COUNTRY_CODES.map((c) => (
+                              <option key={`${c.country}-${c.code}`} value={c.code}>
+                                {c.country} ({c.code})
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                         </div>
                         <input 
                           type="tel" 
-                          value={mobileNumber}
-                          onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                          placeholder="8103094197"
-                          className="flex-1 px-5 py-3.5 bg-zinc-800 border border-zinc-700 rounded-2xl outline-none text-white focus:ring-2 focus:ring-indigo-500/50 transition-all font-bold tracking-wider"
+                          value={tempMobileNumber}
+                          onChange={(e) => setTempMobileNumber(e.target.value.replace(/\D/g, '').slice(0, 15))}
+                          placeholder="Enter mobile number"
+                          className="flex-1 px-5 py-3.5 bg-zinc-800 border border-zinc-700 rounded-2xl outline-none text-white focus:ring-2 focus:ring-indigo-500/50 transition-all font-bold tracking-wider w-full min-w-0"
                         />
                       </div>
                     </div>
 
                     <button 
                       onClick={handleSendOtp}
-                      disabled={isSendingOtp || mobileNumber.length < 10}
+                      disabled={isSendingOtp || tempMobileNumber.length < 5}
                       className="w-full py-4 bg-white hover:bg-zinc-200 text-black rounded-2xl font-black text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                       {isSendingOtp ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
@@ -276,7 +341,7 @@ export const Settings: React.FC<SettingsProps> = ({ user }) => {
                       <p className="text-zinc-400 font-medium">
                         We've sent a 6-digit code to
                       </p>
-                      <p className="font-black text-white">+91 {mobileNumber}</p>
+                      <p className="font-black text-white">{tempCountryCode} {tempMobileNumber}</p>
                     </div>
 
                     <div className="space-y-4">

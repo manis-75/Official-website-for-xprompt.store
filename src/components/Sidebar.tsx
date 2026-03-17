@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import React, { useState, useRef, useEffect } from 'react';
+import { ReportIssueModal } from './ReportIssueModal';
 
 interface User {
   name: string;
@@ -51,6 +52,7 @@ interface SidebarProps {
 export const Sidebar = ({ activeTab, onTabChange, isOpen, onToggle, user, onLogout }: SidebarProps) => {
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isLightMode, setIsLightMode] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -357,7 +359,7 @@ export const Sidebar = ({ activeTab, onTabChange, isOpen, onToggle, user, onLogo
                   <button 
                     onClick={() => {
                       setIsProfileMenuOpen(false);
-                      // Handle report issue click
+                      setIsReportModalOpen(true);
                     }}
                     className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
                   >
@@ -415,6 +417,7 @@ export const Sidebar = ({ activeTab, onTabChange, isOpen, onToggle, user, onLogo
           </div>
         </div>
       </div>
+      <ReportIssueModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} />
     </motion.aside>
   );
 };

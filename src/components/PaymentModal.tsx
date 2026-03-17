@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, CreditCard, ArrowRight, CheckCircle2, QrCode, Smartphone, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -15,14 +15,16 @@ interface PaymentModalProps {
 
 export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess }: PaymentModalProps) => {
   const [amount, setAmount] = useState(initialAmount);
-  const [step, setStep] = useState<'amount' | 'method' | 'qr' | 'verify' | 'processing' | 'success'>('amount');
+  const [step, setStep] = useState<'amount' | 'method' | 'qr' | 'verify' | 'processing' | 'success' | 'enter-upi-id' | 'awaiting-upi-approval'>('amount');
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [utr, setUtr] = useState('');
+  const [upiId, setUpiId] = useState('');
 
   const handleProceed = () => {
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      alert("Please enter a valid amount");
+    const numAmount = Number(amount);
+    if (!amount || isNaN(numAmount) || numAmount < 10 || numAmount > 10000) {
+      alert("Please enter a valid amount between ₹10 and ₹10,000");
       return;
     }
     setStep('method');
@@ -31,32 +33,37 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
   const handleMethodSelect = (method: string, methodName: string) => {
     setSelectedMethod(methodName);
     
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const isUpiApp = ['gpay', 'phonepe', 'paytm', 'bhim'].includes(method);
 
-    if (method === 'qr' || (!isMobile && isUpiApp)) {
+    if (isUpiApp) {
+      setStep('enter-upi-id');
+    } else if (method === 'qr') {
       setStep('qr');
-    } else if (isMobile && isUpiApp) {
-      const upiId = "8103094197-3@ybl";
-      const mName = "AI Studio";
-      const upiParams = `pa=${upiId}&pn=${encodeURIComponent(mName)}&am=${amount}&cu=INR`;
-      
-      let deepLink = `upi://pay?${upiParams}`;
-      if (method === 'gpay') deepLink = `tez://upi/pay?${upiParams}`;
-      else if (method === 'phonepe') deepLink = `phonepe://pay?${upiParams}`;
-      else if (method === 'paytm') deepLink = `paytmmp://pay?${upiParams}`;
-      else if (method === 'bhim') deepLink = `bhim://pay?${upiParams}`;
-
-      window.location.href = deepLink;
-      
-      // After redirecting to the app, show the verify step so they can enter UTR when they return
-      setTimeout(() => {
-        setStep('verify');
-      }, 1000);
     } else {
       setStep('verify');
     }
   };
+
+  const handleUpiSubmit = () => {
+    if (!upiId || !upiId.includes('@')) {
+      alert("Please enter a valid UPI ID (e.g., name@ybl)");
+      return;
+    }
+    setStep('awaiting-upi-approval');
+  };
+
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    if (step === 'awaiting-upi-approval') {
+      // Simulate the user approving the request on their phone after 8 seconds
+      timeout = setTimeout(() => {
+        handlePaymentComplete(selectedMethod || 'UPI');
+      }, 8000);
+    }
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [step, selectedMethod, amount]);
 
   const handlePaymentComplete = async (methodName: string = 'QR Code', utrNumber?: string) => {
     if (!auth.currentUser) return;
@@ -126,57 +133,53 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.98, opacity: 0, y: 10 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md bg-[#0a0a0a] border border-zinc-800 shadow-2xl flex flex-col max-h-[90vh]"
+            className="w-full max-w-md bg-[#0a0a0a] border border-zinc-800 rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-zinc-800 bg-[#111] shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-zinc-800 flex items-center justify-center">
-                  <CreditCard className="w-4 h-4 text-zinc-300" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-medium text-zinc-100 uppercase tracking-wider">Add Funds</h2>
-                  <p className="text-xs font-mono text-zinc-500">SECURE_PAYMENT_GATEWAY</p>
-                </div>
+            <div className="flex items-start justify-between p-6 pb-2 shrink-0">
+              <div className="space-y-1.5">
+                <h2 className="text-xl font-bold text-white">Add Funds to Wallet</h2>
+                {step === 'amount' && (
+                  <p className="text-sm text-zinc-400">Choose an amount and payment method to add funds to your wallet.</p>
+                )}
+                {step === 'method' && (
+                  <p className="text-sm text-zinc-400">Select a payment method to proceed.</p>
+                )}
+                {step === 'qr' && (
+                  <p className="text-sm text-zinc-400">Scan the QR code to make the payment.</p>
+                )}
+                {step === 'verify' && (
+                  <p className="text-sm text-zinc-400">Enter your UTR number to verify the payment.</p>
+                )}
+                {step === 'enter-upi-id' && (
+                  <p className="text-sm text-zinc-400">Enter your UPI ID to receive a payment request.</p>
+                )}
+                {step === 'awaiting-upi-approval' && (
+                  <p className="text-sm text-zinc-400">Approve the payment request on your mobile app.</p>
+                )}
               </div>
               <button 
                 onClick={resetAndClose}
-                className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors"
+                className="w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-full transition-colors"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
             
-            <div className="p-8 overflow-y-auto">
+            <div className="p-6 overflow-y-auto">
               {step === 'amount' && (
-                <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
-                  <div className="space-y-3">
-                    <label className="text-xs font-mono text-zinc-500 uppercase tracking-widest flex justify-between">
-                      <span>Amount (INR)</span>
-                      <span>MIN: ₹100</span>
-                    </label>
-                    <div className="relative flex items-center border border-zinc-800 bg-black focus-within:border-zinc-500 transition-colors">
-                      <span className="pl-4 text-zinc-500 font-mono">₹</span>
-                      <input 
-                        type="number" 
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        className="w-full bg-transparent py-4 px-3 text-2xl font-light text-white focus:outline-none font-mono"
-                        placeholder="0.00"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-px bg-zinc-800 border border-zinc-800">
-                    {['100', '500', '1000'].map((preset) => (
+                <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                  
+                  <div className="grid grid-cols-3 gap-3">
+                    {['100', '250', '500', '1000', '2000', '5000'].map((preset) => (
                       <button
                         key={preset}
                         onClick={() => setAmount(preset)}
                         className={cn(
-                          "py-3 text-sm font-mono transition-colors bg-[#0a0a0a]",
+                          "py-3 text-sm font-medium rounded-xl border transition-colors",
                           amount === preset 
-                            ? "text-white bg-zinc-800" 
-                            : "text-zinc-500 hover:text-zinc-300 hover:bg-[#111]"
+                            ? "border-zinc-500 text-white bg-zinc-800" 
+                            : "border-zinc-800 text-zinc-300 hover:bg-zinc-800/50"
                         )}
                       >
                         ₹{preset}
@@ -184,13 +187,39 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
                     ))}
                   </div>
 
-                  <button 
-                    onClick={handleProceed}
-                    className="w-full bg-white text-black font-medium text-sm py-4 hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 uppercase tracking-wider"
-                  >
-                    Proceed to Pay
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
+                  <div>
+                    <div className="relative flex items-center border border-zinc-800 rounded-xl bg-[#0a0a0a] focus-within:border-zinc-500 transition-colors overflow-hidden">
+                      <span className="pl-4 text-zinc-500">₹</span>
+                      <input 
+                        type="number" 
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        className="w-full bg-transparent py-3.5 px-3 text-sm text-white focus:outline-none"
+                        placeholder="Custom amount"
+                      />
+                    </div>
+                    <p className="text-xs text-zinc-500 mt-2">Min: ₹10 · Max: ₹10,000</p>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-4">
+                    <button 
+                      onClick={resetAndClose}
+                      className="px-6 py-2.5 rounded-xl border border-zinc-800 text-white text-sm font-medium hover:bg-zinc-800 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={handleProceed}
+                      disabled={!amount || Number(amount) < 10 || Number(amount) > 10000}
+                      className="px-6 py-2.5 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ 
+                        backgroundColor: amount && Number(amount) >= 10 && Number(amount) <= 10000 ? '#e4e4e7' : '#52525b',
+                        color: amount && Number(amount) >= 10 && Number(amount) <= 10000 ? '#000' : '#a1a1aa'
+                      }}
+                    >
+                      Pay ₹{amount || '0'}
+                    </button>
+                  </div>
                 </motion.div>
               )}
 
@@ -255,7 +284,74 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
                   <Loader2 className="w-12 h-12 text-zinc-400 animate-spin" />
                   <div className="space-y-2">
                     <h3 className="text-lg font-medium text-white uppercase tracking-wider">Processing Payment</h3>
-                    <p className="text-zinc-400 font-mono text-sm">Please complete the payment on {selectedMethod}</p>
+                    <p className="text-zinc-400 font-mono text-sm">Please wait while we confirm your payment</p>
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 'enter-upi-id' && (
+                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                  <div className="text-center space-y-2 w-full border-b border-zinc-800 pb-6">
+                    <p className="text-xs font-mono text-zinc-500 uppercase tracking-widest mb-2">UPI Payment</p>
+                    <h3 className="text-xl font-light text-white font-mono">Enter your UPI ID</h3>
+                    <p className="text-sm text-zinc-400">A payment request will be sent to this UPI ID.</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-xs font-mono text-zinc-500 uppercase tracking-widest">UPI ID (VPA)</label>
+                    <div className="relative flex items-center border border-zinc-800 bg-black focus-within:border-zinc-500 transition-colors rounded-xl overflow-hidden">
+                      <input 
+                        type="text" 
+                        value={upiId}
+                        onChange={(e) => setUpiId(e.target.value.toLowerCase())}
+                        className="w-full bg-transparent py-4 px-4 text-lg font-light text-white focus:outline-none font-mono"
+                        placeholder="e.g. 9876543210@ybl"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="w-full space-y-3 pt-4">
+                    <button 
+                      onClick={handleUpiSubmit}
+                      disabled={!upiId.includes('@')}
+                      className="w-full bg-white text-black font-medium text-sm py-4 rounded-xl hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Send Payment Request
+                    </button>
+                    
+                    <button 
+                      onClick={() => setStep('method')}
+                      className="w-full py-3 text-xs font-mono text-zinc-500 hover:text-white transition-colors uppercase tracking-widest"
+                    >
+                      Cancel / Go Back
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 'awaiting-upi-approval' && (
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center py-8 space-y-6 text-center">
+                  <div className="relative">
+                    <div className="w-20 h-20 border-4 border-zinc-800 border-t-indigo-500 rounded-full animate-spin"></div>
+                    <Smartphone className="w-8 h-8 text-zinc-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                  </div>
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-medium text-white uppercase tracking-wider">Approve Payment</h3>
+                    <p className="text-zinc-400 text-sm max-w-[280px] mx-auto leading-relaxed">
+                      We have sent a request of <span className="text-white font-mono font-bold">₹{amount}.00</span> to <span className="text-white font-mono">{upiId}</span>.
+                    </p>
+                    <p className="text-zinc-500 text-xs">
+                      Please open your {selectedMethod} app to approve the payment.
+                    </p>
+                  </div>
+                  
+                  <div className="pt-6 w-full">
+                     <button 
+                      onClick={() => setStep('enter-upi-id')}
+                      className="w-full py-3 text-xs font-mono text-zinc-500 hover:text-white transition-colors uppercase tracking-widest"
+                    >
+                      Cancel Request
+                    </button>
                   </div>
                 </motion.div>
               )}

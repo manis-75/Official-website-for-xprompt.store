@@ -113,7 +113,9 @@ body.light-mode {
   color: #000000;
 }
 
-body.light-mode .bg-black { background-color: #ffffff !important; }
+body.light-mode .bg-zinc-950 { background-color: #ffffff !important; }
+body.light-mode .bg-zinc-950\/30 { background-color: rgba(255, 255, 255, 0.3) !important; }
+body.light-mode .bg-zinc-950\/50 { background-color: rgba(255, 255, 255, 0.5) !important; }
 body.light-mode .text-white { color: #000000 !important; }
 body.light-mode .bg-zinc-900 { background-color: #f4f4f5 !important; }
 body.light-mode .bg-zinc-900\/50 { background-color: rgba(244, 244, 245, 0.5) !important; }
