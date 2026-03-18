@@ -551,7 +551,7 @@ export const AdminPanel = () => {
                   type="button"
                   onClick={() => {
                     setUploadMethod('file');
-                    setImagePreview(imageFile ? URL.createObjectURL(imageFile) : null);
+                    setImagePreview(imageFiles.length > 0 ? URL.createObjectURL(imageFiles[0]) : null);
                   }}
                   className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg transition-all ${
                     uploadMethod === 'file' 

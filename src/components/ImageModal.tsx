@@ -87,7 +87,10 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
   };
 
   const handleWalletPayment = async () => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser) {
+      alert("Please log in to make a purchase.");
+      return;
+    }
     setIsProcessingPayment(true);
     
     try {
@@ -209,6 +212,10 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
   };
 
   const handleLike = async () => {
+    if (!auth.currentUser) {
+      alert("Please log in to like this item.");
+      return;
+    }
     const newLikedState = !isLiked;
     setIsLiked(newLikedState);
     

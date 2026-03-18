@@ -14,7 +14,10 @@ export default function Wallet() {
   const [loading, setLoading] = useState(true);
 
   const fetchWalletData = async () => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser) {
+      setLoading(false);
+      return;
+    }
     try {
       const userRef = doc(db, 'users', auth.currentUser.uid);
       const userSnap = await getDoc(userRef);
@@ -50,7 +53,7 @@ export default function Wallet() {
   }, []);
 
   return (
-    <div className="h-full overflow-y-auto p-6 md:p-10 custom-scrollbar bg-[#0a0a0a] text-white">
+    <div className="h-full overflow-y-auto p-6 md:p-10 custom-scrollbar bg-black text-white">
       <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Header */}
@@ -63,7 +66,7 @@ export default function Wallet() {
         </div>
 
         {/* Balance Card */}
-        <div className="bg-[#141414] border border-zinc-800/50 rounded-xl p-6 flex items-center justify-between">
+        <div className="bg-zinc-900 border border-zinc-800/50 rounded-xl p-6 flex items-center justify-between">
           <div className="space-y-1">
             <p className="text-zinc-400 text-sm">Available Balance</p>
             <div className="text-4xl font-bold tracking-tight">₹ {balance.toFixed(2)}</div>
@@ -78,7 +81,7 @@ export default function Wallet() {
         </div>
 
         {/* Transaction History */}
-        <div className="bg-[#141414] border border-zinc-800/50 rounded-xl p-6">
+        <div className="bg-zinc-900 border border-zinc-800/50 rounded-xl p-6">
           <h2 className="text-lg font-bold mb-6">Transaction History</h2>
           
           {loading ? (

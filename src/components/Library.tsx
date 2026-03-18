@@ -15,7 +15,10 @@ export const Library = () => {
 
   useEffect(() => {
     const fetchPurchases = async () => {
-      if (!auth.currentUser) return;
+      if (!auth.currentUser) {
+        setLoading(false);
+        return;
+      }
       
       try {
         const q = query(

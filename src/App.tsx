@@ -31,6 +31,7 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showAuth, setShowAuth] = useState(false);
 
   useEffect(() => {
     // Global Image Protection & Security
@@ -131,8 +132,8 @@ export default function App() {
     );
   }
 
-  if (!user) {
-    return <Auth onLogin={() => {}} />;
+  if (showAuth) {
+    return <Auth onLogin={() => setShowAuth(false)} onClose={() => setShowAuth(false)} />;
   }
 
   return (
@@ -144,6 +145,7 @@ export default function App() {
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
         user={user}
         onLogout={handleLogout}
+        onLoginClick={() => setShowAuth(true)}
       />
       <main className={cn(
         "flex-1 overflow-y-auto transition-all duration-300 ease-in-out",
@@ -156,9 +158,9 @@ export default function App() {
         {(activeTab.startsWith('Ad Templates') || activeTab === 'Ad Studio') && <AddImage activeTab={activeTab} />}
         {(activeTab.startsWith('Trending') || activeTab.startsWith('All Category') || activeTab === 'Thumbnail') && <YoutubeThumbnail activeTab={activeTab} />}
         {(activeTab.startsWith('Logo Prompt') || activeTab.startsWith('Icon Prompt') || activeTab === 'Logo Image') && <IconImage activeTab={activeTab} />}
-        {activeTab === 'Admin Panel' && user.role === 'admin' && <AdminPanel />}
-        {activeTab === 'Settings' && <Settings user={user} />}
-        {activeTab === 'Account Details' && <AccountDetails user={user} onNavigate={setActiveTab} />}
+        {activeTab === 'Admin Panel' && user?.role === 'admin' && <AdminPanel />}
+        {activeTab === 'Settings' && user && <Settings user={user} />}
+        {activeTab === 'Account Details' && user && <AccountDetails user={user} onNavigate={setActiveTab} />}
         {activeTab === 'Plans' && <Pricing />}
         {activeTab === 'Wallet' && <Wallet />}
         {activeTab !== 'Home' && activeTab !== 'Library' && activeTab !== 'Explore' && !activeTab.startsWith('AI Influencer') && activeTab !== 'Model' && !activeTab.startsWith('Ad Templates') && activeTab !== 'Ad Studio' && 

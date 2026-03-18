@@ -71,7 +71,7 @@ export default function Pricing() {
   ];
 
   return (
-    <div className="h-full overflow-y-auto p-6 md:p-10 custom-scrollbar bg-[#050505] text-white font-sans">
+    <div className="h-full overflow-y-auto p-6 md:p-10 custom-scrollbar bg-black text-white font-sans">
       <div className="max-w-7xl mx-auto space-y-12">
         
         {/* Header - Corporate & Structured */}
@@ -120,7 +120,7 @@ export default function Pricing() {
                 setSelectedAmount(item.price);
                 setIsPaymentModalOpen(true);
               }}
-              className="bg-[#0a0a0a] p-8 hover:bg-[#111] transition-colors cursor-pointer group flex flex-col justify-between min-h-[400px]"
+              className="bg-zinc-950 p-8 hover:bg-zinc-900 transition-colors cursor-pointer group flex flex-col justify-between min-h-[400px]"
             >
               <div className="space-y-6">
                 <div className="flex items-start justify-between">
@@ -166,7 +166,7 @@ export default function Pricing() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="bg-[#0a0a0a] p-8 flex flex-col justify-center items-center text-center"
+            className="bg-zinc-950 p-8 flex flex-col justify-center items-center text-center"
           >
             <div className="w-12 h-12 rounded-full border border-zinc-800 flex items-center justify-center mb-4">
               <Sparkles className="w-5 h-5 text-zinc-500" />

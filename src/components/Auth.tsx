@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Box, Mail, Lock, User as UserIcon, ArrowRight, AlertCircle } from 'lucide-react';
+import { Box, Mail, Lock, User as UserIcon, ArrowRight, AlertCircle, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { auth, db } from '../lib/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
@@ -8,10 +8,12 @@ import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 interface AuthProps {
   onLogin: (user: { name: string; email: string }) => void;
+  onClose?: () => void;
+  initialMode?: 'login' | 'signup';
 }
 
-export const Auth = ({ onLogin }: AuthProps) => {
-  const [isLogin, setIsLogin] = useState(true);
+export const Auth = ({ onLogin, onClose, initialMode = 'signup' }: AuthProps) => {
+  const [isLogin, setIsLogin] = useState(initialMode === 'login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -125,6 +127,14 @@ export const Auth = ({ onLogin }: AuthProps) => {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md bg-zinc-900/80 backdrop-blur-xl border border-zinc-800 rounded-3xl p-8 shadow-2xl relative z-10"
       >
+        {onClose && (
+          <button 
+            onClick={onClose}
+            className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full transition-colors"
+          >
+            <X size={20} />
+          </button>
+        )}
         <div className="flex justify-center mb-8">
           <div className="flex items-center justify-center w-32 h-32">
             <img src="https://ybclafjjnjdkecmegtyk.supabase.co/storage/v1/object/public/images/3a08db9a-f6b1-4f94-8af3-2ca494fc8833/1773835926648-n5z41m8dgp.png" alt="Xprompt Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />

@@ -45,11 +45,12 @@ interface SidebarProps {
   onTabChange: (tab: string) => void;
   isOpen: boolean;
   onToggle: () => void;
-  user: User;
+  user: User | null;
   onLogout: () => void;
+  onLoginClick?: () => void;
 }
 
-export const Sidebar = ({ activeTab, onTabChange, isOpen, onToggle, user, onLogout }: SidebarProps) => {
+export const Sidebar = ({ activeTab, onTabChange, isOpen, onToggle, user, onLogout, onLoginClick }: SidebarProps) => {
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -303,120 +304,147 @@ export const Sidebar = ({ activeTab, onTabChange, isOpen, onToggle, user, onLogo
       <div className="mt-auto space-y-4">
 
 
-        <div className="relative" ref={menuRef}>
-          <AnimatePresence>
-            {isProfileMenuOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                transition={{ duration: 0.15 }}
-                className="absolute bottom-full mb-2 left-0 w-full bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl overflow-hidden z-50"
-              >
-                <div className="p-2 space-y-1">
-                  <button 
-                    onClick={() => {
-                      setIsProfileMenuOpen(false);
-                      onTabChange('Account Details');
-                    }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
-                  >
-                    <UserIcon size={18} />
-                    <span>Account Details</span>
-                  </button>
-                  {user.role === 'admin' && (
+          <div className="relative" ref={menuRef}>
+            <AnimatePresence>
+              {isProfileMenuOpen && user && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute bottom-full mb-2 left-0 w-full bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl overflow-hidden z-50"
+                >
+                  <div className="p-2 space-y-1">
                     <button 
                       onClick={() => {
                         setIsProfileMenuOpen(false);
-                        onTabChange('Admin Panel');
+                        onTabChange('Account Details');
                       }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 rounded-lg transition-colors"
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
                     >
-                      <Shield size={18} />
-                      <span>Admin Panel</span>
+                      <UserIcon size={18} />
+                      <span>Account Details</span>
                     </button>
-                  )}
-                  <button 
-                    onClick={() => {
-                      setIsProfileMenuOpen(false);
-                      onTabChange('Settings');
-                    }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
-                  >
-                    <Settings size={18} />
-                    <span>Settings</span>
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setIsProfileMenuOpen(false);
-                      toggleLightMode();
-                    }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
-                  >
-                    {isLightMode ? <Sun size={18} /> : <Moon size={18} />}
-                    <span>{isLightMode ? 'Dark Mode' : 'Light Mode'}</span>
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setIsProfileMenuOpen(false);
-                      setIsReportModalOpen(true);
-                    }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
-                  >
-                    <Bug size={18} />
-                    <span>Report Issue</span>
-                  </button>
-                  <div className="h-px bg-zinc-800 my-1" />
-                  <button 
-                    onClick={() => {
-                      setIsProfileMenuOpen(false);
-                      onLogout();
-                    }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg transition-colors"
-                  >
-                    <LogOut size={18} />
-                    <span>Log out</span>
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div 
-            onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-            className={cn(
-              "flex items-center rounded-xl hover:bg-zinc-800/30 transition-colors cursor-pointer group",
-              isOpen ? "gap-3 p-2" : "w-12 h-12 mx-auto justify-center"
-            )}
-          >
-            <div className={cn("rounded-full bg-pink-600 flex items-center justify-center text-white font-bold uppercase overflow-hidden shrink-0", isOpen ? "w-10 h-10 text-sm" : "w-10 h-10 text-sm")}>
-              {user.photoURL ? (
-                <img src={user.photoURL} alt={user.name} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
-              ) : (
-                user.name.charAt(0)
+                    {user.role === 'admin' && (
+                      <button 
+                        onClick={() => {
+                          setIsProfileMenuOpen(false);
+                          onTabChange('Admin Panel');
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 rounded-lg transition-colors"
+                      >
+                        <Shield size={18} />
+                        <span>Admin Panel</span>
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        onTabChange('Settings');
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
+                    >
+                      <Settings size={18} />
+                      <span>Settings</span>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        toggleLightMode();
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
+                    >
+                      {isLightMode ? <Sun size={18} /> : <Moon size={18} />}
+                      <span>{isLightMode ? 'Dark Mode' : 'Light Mode'}</span>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        setIsReportModalOpen(true);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
+                    >
+                      <Bug size={18} />
+                      <span>Report Issue</span>
+                    </button>
+                    <div className="h-px bg-zinc-800 my-1" />
+                    <button 
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        onLogout();
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg transition-colors"
+                    >
+                      <LogOut size={18} />
+                      <span>Log out</span>
+                    </button>
+                  </div>
+                </motion.div>
               )}
-            </div>
-            {isOpen && (
-              <>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{user.name}</p>
-                  <p className="text-xs text-zinc-500 truncate">{user.email}</p>
+            </AnimatePresence>
+
+            {user ? (
+              <div 
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                className={cn(
+                  "flex items-center rounded-xl hover:bg-zinc-800/30 transition-colors cursor-pointer group",
+                  isOpen ? "gap-3 p-2" : "w-12 h-12 mx-auto justify-center"
+                )}
+              >
+                <div className={cn("rounded-full bg-pink-600 flex items-center justify-center text-white font-bold uppercase overflow-hidden shrink-0", isOpen ? "w-10 h-10 text-sm" : "w-10 h-10 text-sm")}>
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt={user.name} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                  ) : (
+                    user.name.charAt(0)
+                  )}
                 </div>
+                {isOpen && (
+                  <>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-white truncate">{user.name}</p>
+                      <p className="text-xs text-zinc-500 truncate">{user.email}</p>
+                    </div>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onLogout();
+                      }}
+                      className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-red-400"
+                      title="Log out"
+                    >
+                      <LogOut size={18} />
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
                 <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onLogout();
+                  onClick={() => {
+                    toggleLightMode();
                   }}
-                  className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors text-zinc-400 hover:text-red-400"
-                  title="Log out"
+                  className={cn(
+                    "flex items-center rounded-xl hover:bg-zinc-800/30 transition-colors cursor-pointer group text-zinc-400 hover:text-white",
+                    isOpen ? "gap-3 p-2" : "w-12 h-12 mx-auto justify-center"
+                  )}
                 >
-                  <LogOut size={18} />
+                  {isLightMode ? <Sun size={20} /> : <Moon size={20} />}
+                  {isOpen && <span className="text-sm font-medium">{isLightMode ? 'Dark Mode' : 'Light Mode'}</span>}
                 </button>
-              </>
+                <button 
+                  onClick={onLoginClick}
+                  className={cn(
+                    "flex items-center justify-center rounded-xl bg-indigo-600 hover:bg-indigo-700 transition-colors text-white font-medium",
+                    isOpen ? "w-full py-2.5 px-4 gap-2" : "w-12 h-12 mx-auto"
+                  )}
+                >
+                  <UserIcon size={20} />
+                  {isOpen && <span>Sign In / Sign Up</span>}
+                </button>
+              </div>
             )}
           </div>
         </div>
-      </div>
       <ReportIssueModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} />
     </motion.aside>
   );
