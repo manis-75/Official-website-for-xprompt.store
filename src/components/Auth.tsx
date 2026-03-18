@@ -127,7 +127,7 @@ export const Auth = ({ onLogin }: AuthProps) => {
       >
         <div className="flex justify-center mb-8">
           <div className="flex items-center justify-center w-20 h-20">
-            <img src="https://ybclafjjnjdkecmegtyk.supabase.co/storage/v1/object/public/images/3a08db9a-f6b1-4f94-8af3-2ca494fc8833/1773399312194-9kt7gbydp86.png" alt="Xprompt Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+            <img src="https://ybclafjjnjdkecmegtyk.supabase.co/storage/v1/object/public/images/3a08db9a-f6b1-4f94-8af3-2ca494fc8833/1773835926648-n5z41m8dgp.png" alt="Xprompt Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
           </div>
         </div>
 
