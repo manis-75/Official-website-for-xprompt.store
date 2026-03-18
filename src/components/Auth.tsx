@@ -126,7 +126,7 @@ export const Auth = ({ onLogin }: AuthProps) => {
         className="w-full max-w-md bg-zinc-900/80 backdrop-blur-xl border border-zinc-800 rounded-3xl p-8 shadow-2xl relative z-10"
       >
         <div className="flex justify-center mb-8">
-          <div className="flex items-center justify-center w-20 h-20">
+          <div className="flex items-center justify-center w-32 h-32">
             <img src="https://ybclafjjnjdkecmegtyk.supabase.co/storage/v1/object/public/images/3a08db9a-f6b1-4f94-8af3-2ca494fc8833/1773835926648-n5z41m8dgp.png" alt="Xprompt Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
           </div>
         </div>
