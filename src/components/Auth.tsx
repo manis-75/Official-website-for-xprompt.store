@@ -49,6 +49,8 @@ export const Auth = ({ onLogin, onClose, initialMode = 'signup' }: AuthProps) =>
       console.error("Google Sign-In error:", err);
       if (err.code === 'auth/popup-closed-by-user') {
         setError('Sign-in popup was closed before completing.');
+      } else if (err.code === 'auth/unauthorized-domain') {
+        setError('This domain is not authorized for Google Sign-In. Please add it to your Firebase Console.');
       } else {
         setError('Failed to sign in with Google. Please try again.');
       }
