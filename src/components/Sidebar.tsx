@@ -27,7 +27,8 @@ import {
   Shield,
   Wallet,
   CreditCard,
-  Wand2
+  Wand2,
+  LogIn
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import React, { useState, useRef, useEffect } from 'react';
@@ -434,12 +435,21 @@ export const Sidebar = ({ activeTab, onTabChange, isOpen, onToggle, user, onLogo
                 <button 
                   onClick={onLoginClick}
                   className={cn(
-                    "flex items-center justify-center rounded-xl bg-indigo-600 hover:bg-indigo-700 transition-colors text-white font-medium",
-                    isOpen ? "w-full py-2.5 px-4 gap-2" : "w-12 h-12 mx-auto"
+                    "flex items-center rounded-xl hover:bg-zinc-800/30 transition-all duration-200 group",
+                    isOpen ? "w-full py-2.5 px-3 gap-3" : "w-12 h-12 mx-auto justify-center"
                   )}
                 >
-                  <UserIcon size={20} />
-                  {isOpen && <span>Sign In / Sign Up</span>}
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:bg-zinc-700 group-hover:text-white transition-colors shrink-0">
+                      <UserIcon size={18} />
+                    </div>
+                    {isOpen && (
+                      <span className="text-sm font-semibold text-blue-400 group-hover:text-blue-300 truncate">
+                        Log in
+                      </span>
+                    )}
+                  </div>
+                  {isOpen && <LogIn size={18} className="text-zinc-500 group-hover:text-white transition-colors" />}
                 </button>
               </div>
             )}
