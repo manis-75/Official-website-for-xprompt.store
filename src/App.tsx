@@ -161,8 +161,8 @@ export default function App() {
         {activeTab === 'Admin Panel' && user?.role === 'admin' && <AdminPanel />}
         {activeTab === 'Settings' && user && <Settings user={user} />}
         {activeTab === 'Account Details' && user && <AccountDetails user={user} onNavigate={setActiveTab} />}
-        {activeTab === 'Plans' && <Pricing />}
-        {activeTab === 'Wallet' && <Wallet />}
+        {activeTab === 'Plans' && <Pricing onLoginClick={() => setShowAuth(true)} />}
+        {activeTab === 'Wallet' && <Wallet onLoginClick={() => setShowAuth(true)} />}
         {activeTab !== 'Home' && activeTab !== 'Library' && activeTab !== 'Explore' && !activeTab.startsWith('AI Influencer') && activeTab !== 'Model' && !activeTab.startsWith('Ad Templates') && activeTab !== 'Ad Studio' && 
          !activeTab.startsWith('Trending') && !activeTab.startsWith('All Category') && activeTab !== 'Thumbnail' && 
          !activeTab.startsWith('Logo Prompt') && !activeTab.startsWith('Icon Prompt') && activeTab !== 'Logo Image' && activeTab !== 'Admin Panel' && activeTab !== 'Settings' && activeTab !== 'Account Details' && activeTab !== 'Plans' && activeTab !== 'Wallet' && (

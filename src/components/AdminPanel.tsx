@@ -1,24 +1,9 @@
-import React, { useState } from 'react';
-import { Upload, Image as ImageIcon, CheckCircle, AlertCircle, Link as LinkIcon, Sparkles, Video } from 'lucide-react';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, collection, addDoc } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import React, { useState, useEffect } from 'react';
+import { Upload, Image as ImageIcon, CheckCircle, AlertCircle, Link as LinkIcon, Sparkles, Video, Clock, CreditCard, Check, X as CloseIcon } from 'lucide-react';
+import { db, storage } from '../lib/firebase';
+import { collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc, increment, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { GoogleGenAI, Type } from "@google/genai";
-
-// Standalone Firebase Configuration for Admin Panel
-const firebaseConfig = {
-  apiKey: "AIzaSyBEv4LYkGfbxkIAPDTzmwIX96NrOf4AooA",
-  authDomain: "promptxp-93dc7.firebaseapp.com",
-  projectId: "promptxp-93dc7",
-  storageBucket: "promptxp-93dc7.firebasestorage.app",
-  messagingSenderId: "880763880555",
-  appId: "1:880763880555:web:fd8742bde90973d0ea5d2e",
-  measurementId: "G-RPGXKG54RN"
-};
-
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
-const storage = getStorage(app);
 
 const CATEGORIES = [
   { id: 'Explore', label: 'Explore Gallery' },
@@ -107,6 +92,10 @@ const CATEGORIES = [
 ];
 
 export const AdminPanel = () => {
+  const [activeTab, setActiveTab] = useState<'upload' | 'payments'>('upload');
+  const [paymentRequests, setPaymentRequests] = useState<any[]>([]);
+  const [isLoadingPayments, setIsLoadingPayments] = useState(false);
+  
   const [category, setCategory] = useState(CATEGORIES[0].id);
   const [title, setTitle] = useState('');
   const [prompt, setPrompt] = useState('');
@@ -126,6 +115,76 @@ export const AdminPanel = () => {
   
   const [isAutoGenerate, setIsAutoGenerate] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'payments') {
+      setIsLoadingPayments(true);
+      const q = query(
+        collection(db, 'payment_requests'),
+        where('status', '==', 'pending'),
+        orderBy('createdAt', 'desc')
+      );
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const requests = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setPaymentRequests(requests);
+        setIsLoadingPayments(false);
+      }, (err) => {
+        console.error("Error fetching payment requests:", err);
+        setIsLoadingPayments(false);
+      });
+
+      return () => unsubscribe();
+    }
+  }, [activeTab]);
+
+  const handleApprovePayment = async (request: any) => {
+    try {
+      // 1. Update payment request status
+      await updateDoc(doc(db, 'payment_requests', request.id), {
+        status: 'approved',
+        updatedAt: new Date().toISOString()
+      });
+
+      // 2. Update user wallet
+      const userRef = doc(db, 'users', request.userId);
+      await updateDoc(userRef, {
+        walletBalance: increment(request.amount)
+      });
+
+      // 3. Add transaction record
+      await addDoc(collection(db, 'users', request.userId, 'transactions'), {
+        amount: request.amount,
+        type: 'credit',
+        method: request.method,
+        status: 'completed',
+        description: `Added ₹${request.amount} to wallet via ${request.method}`,
+        createdAt: new Date().toISOString()
+      });
+
+      alert('Payment approved and wallet updated!');
+    } catch (err) {
+      console.error("Error approving payment:", err);
+      alert('Failed to approve payment.');
+    }
+  };
+
+  const handleRejectPayment = async (requestId: string) => {
+    if (!confirm('Are you sure you want to reject this payment request?')) return;
+    try {
+      await updateDoc(doc(db, 'payment_requests', requestId), {
+        status: 'rejected',
+        updatedAt: new Date().toISOString()
+      });
+      alert('Payment request rejected.');
+    } catch (err) {
+      console.error("Error rejecting payment:", err);
+      alert('Failed to reject payment.');
+    }
+  };
 
   const generateAIDetails = async (source: 'file' | 'url', fileOrUrl: File | string) => {
     if (!isAutoGenerate) return;
@@ -487,13 +546,45 @@ export const AdminPanel = () => {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">Admin Panel</h1>
-        <p className="text-zinc-400">Upload new media to the system.</p>
+    <div className="p-6 md:p-8 max-w-6xl mx-auto">
+      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">Admin Panel</h1>
+          <p className="text-zinc-400">Manage media and verify payments.</p>
+        </div>
+        
+        <div className="flex p-1 bg-zinc-900 border border-white/10 rounded-2xl">
+          <button
+            onClick={() => setActiveTab('upload')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-medium transition-all ${
+              activeTab === 'upload' 
+                ? 'bg-white text-black shadow-lg' 
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            Media Upload
+          </button>
+          <button
+            onClick={() => setActiveTab('payments')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${
+              activeTab === 'payments' 
+                ? 'bg-white text-black shadow-lg' 
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <CreditCard size={16} />
+            Payments
+            {paymentRequests.length > 0 && (
+              <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                {paymentRequests.length}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
-      <div className="bg-zinc-900 border border-white/10 rounded-3xl p-6 md:p-8">
+      {activeTab === 'upload' ? (
+        <div className="bg-zinc-900 border border-white/10 rounded-3xl p-6 md:p-8">
         {success && (
           <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/50 rounded-xl flex items-center gap-3 text-emerald-400">
             <CheckCircle size={20} className="shrink-0" />
@@ -778,6 +869,72 @@ export const AdminPanel = () => {
           </div>
         </form>
       </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-4">
+            {isLoadingPayments ? (
+              <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
+                <Clock className="w-8 h-8 animate-spin mb-4" />
+                <p>Loading pending requests...</p>
+              </div>
+            ) : paymentRequests.length === 0 ? (
+              <div className="bg-zinc-900 border border-white/10 rounded-3xl p-12 text-center">
+                <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="text-zinc-600" />
+                </div>
+                <h3 className="text-white font-medium mb-1">All caught up!</h3>
+                <p className="text-zinc-500 text-sm">No pending payment requests to verify.</p>
+              </div>
+            ) : (
+              paymentRequests.map((request) => (
+                <div key={request.id} className="bg-zinc-900 border border-white/10 rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl">
+                      <CreditCard size={24} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-lg font-bold text-white">₹{request.amount}</h3>
+                        <span className="text-xs px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-full uppercase tracking-wider font-mono">
+                          {request.method}
+                        </span>
+                      </div>
+                      <p className="text-sm text-zinc-400 mb-2">User ID: <span className="font-mono text-xs">{request.userId}</span></p>
+                      <div className="flex flex-wrap gap-4 text-xs font-mono">
+                        <div className="flex items-center gap-1.5 text-zinc-500">
+                          <span className="text-zinc-600 uppercase">UTR:</span>
+                          <span className="text-white select-all">{request.utr}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-zinc-500">
+                          <Clock size={12} />
+                          <span>{new Date(request.createdAt).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => handleRejectPayment(request.id)}
+                      className="flex-1 md:flex-none px-6 py-2.5 rounded-xl border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                    >
+                      <CloseIcon size={16} />
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => handleApprovePayment(request)}
+                      className="flex-1 md:flex-none px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                    >
+                      <Check size={16} />
+                      Approve
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { Video, User, LayoutTemplate, Palette, Youtube, CheckCircle2, ArrowRight, Sparkles } from 'lucide-react';
 import { PaymentModal } from './PaymentModal';
 
-export default function Pricing() {
+export default function Pricing({ onLoginClick }: { onLoginClick?: () => void }) {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState('500');
 
@@ -186,6 +186,7 @@ export default function Pricing() {
         isOpen={isPaymentModalOpen} 
         onClose={() => setIsPaymentModalOpen(false)} 
         initialAmount={selectedAmount}
+        onLoginClick={onLoginClick}
       />
     </div>
   );

@@ -7,7 +7,7 @@ import { db, auth } from '../lib/firebase';
 import { doc, getDoc, collection, query, orderBy, getDocs } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/errorHandling';
 
-export default function Wallet() {
+export default function Wallet({ onLoginClick }: { onLoginClick?: () => void }) {
   const [isAddingFunds, setIsAddingFunds] = useState(false);
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -150,6 +150,7 @@ export default function Wallet() {
           setIsAddingFunds(false);
           fetchWalletData();
         }}
+        onLoginClick={onLoginClick}
       />
     </div>
   );
