@@ -155,13 +155,37 @@ export const AdminPanel = () => {
         walletBalance: increment(request.amount)
       });
 
-      // 3. Add transaction record
-      await addDoc(collection(db, 'users', request.userId, 'transactions'), {
+      // 3. Update or add transaction record
+      if (request.transactionId) {
+        await updateDoc(doc(db, 'users', request.userId, 'transactions', request.transactionId), {
+          status: 'completed',
+          title: 'Wallet Top-up (Success)',
+          description: `₹${request.amount} payment verified and added to wallet`,
+          updatedAt: new Date().toISOString()
+        });
+      } else {
+        await addDoc(collection(db, 'users', request.userId, 'transactions'), {
+          amount: request.amount,
+          type: 'Credit',
+          isCredit: true,
+          status: 'completed',
+          title: 'Wallet Top-up',
+          date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+          timestamp: new Date().toISOString(),
+          method: request.method,
+          description: `Added ₹${request.amount} to wallet via ${request.method}`,
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      // 4. Add to global payments log
+      await addDoc(collection(db, 'payments'), {
+        uid: request.userId,
+        userEmail: request.userEmail || 'Unknown',
         amount: request.amount,
-        type: 'credit',
         method: request.method,
         status: 'completed',
-        description: `Added ₹${request.amount} to wallet via ${request.method}`,
+        utr: request.utr,
         createdAt: new Date().toISOString()
       });
 
@@ -172,13 +196,24 @@ export const AdminPanel = () => {
     }
   };
 
-  const handleRejectPayment = async (requestId: string) => {
+  const handleRejectPayment = async (request: any) => {
     if (!confirm('Are you sure you want to reject this payment request?')) return;
     try {
-      await updateDoc(doc(db, 'payment_requests', requestId), {
+      await updateDoc(doc(db, 'payment_requests', request.id), {
         status: 'rejected',
         updatedAt: new Date().toISOString()
       });
+
+      // Update user's transaction status if it exists
+      if (request.transactionId) {
+        await updateDoc(doc(db, 'users', request.userId, 'transactions', request.transactionId), {
+          status: 'rejected',
+          title: 'Wallet Top-up (Rejected)',
+          description: `₹${request.amount} payment rejected (UTR: ${request.utr})`,
+          updatedAt: new Date().toISOString()
+        });
+      }
+
       alert('Payment request rejected.');
     } catch (err) {
       console.error("Error rejecting payment:", err);
@@ -915,7 +950,7 @@ export const AdminPanel = () => {
 
                   <div className="flex items-center gap-3">
                     <button
-                      onClick={() => handleRejectPayment(request.id)}
+                      onClick={() => handleRejectPayment(request)}
                       className="flex-1 md:flex-none px-6 py-2.5 rounded-xl border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-colors text-sm font-medium flex items-center justify-center gap-2"
                     >
                       <CloseIcon size={16} />

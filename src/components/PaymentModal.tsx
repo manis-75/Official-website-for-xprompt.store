@@ -16,40 +16,57 @@ interface PaymentModalProps {
 
 export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess, onLoginClick }: PaymentModalProps) => {
   const [amount, setAmount] = useState(initialAmount);
-  const [step, setStep] = useState<'amount' | 'qr' | 'processing' | 'success'>('amount');
-  const [isProcessing, setIsProcessing] = useState(false);
   const [utr, setUtr] = useState('');
+  const [step, setStep] = useState<'amount' | 'qr' | 'utr' | 'processing' | 'success'>('amount');
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const handlePaymentComplete = async (methodName: string = 'QR Code') => {
+  const handlePaymentComplete = async () => {
     if (!auth.currentUser) return;
-    if (!utr.trim()) {
-      alert("Please enter the Transaction ID (UTR) to verify your payment.");
+    if (!utr || utr.length < 6) {
+      alert("Please enter a valid UTR number (Transaction ID)");
       return;
     }
+
     setIsProcessing(true);
+    setStep('processing');
     
     try {
-      // Create a payment request instead of directly updating balance
-      await addDoc(collection(db, 'payment_requests'), {
-        uid: auth.currentUser.uid,
-        userEmail: auth.currentUser.email,
-        userName: auth.currentUser.displayName || auth.currentUser.email?.split('@')[0],
+      // Record a pending transaction in user's history
+      const transactionRef = await addDoc(collection(db, 'users', auth.currentUser.uid, 'transactions'), {
         amount: Number(amount),
-        utr: utr.trim(),
-        method: methodName,
+        type: 'Credit',
+        isCredit: true,
         status: 'pending',
-        createdAt: new Date(),
-        timestamp: new Date().toISOString()
+        title: 'Wallet Top-up (Pending)',
+        date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+        timestamp: new Date().toISOString(),
+        utr: utr,
+        method: 'UPI_QR',
+        description: `₹${amount} payment pending verification (UTR: ${utr})`,
+        createdAt: new Date().toISOString()
+      });
+
+      // Create a payment request for admin verification
+      await addDoc(collection(db, 'payment_requests'), {
+        userId: auth.currentUser.uid,
+        userEmail: auth.currentUser.email,
+        amount: Number(amount),
+        utr: utr,
+        method: 'UPI_QR',
+        status: 'pending',
+        transactionId: transactionRef.id,
+        createdAt: new Date().toISOString()
       });
       
       setStep('success');
       if (onSuccess) {
-        setTimeout(onSuccess, 3000);
+        onSuccess();
       }
     } catch (error) {
-      console.error("Payment request error:", error);
-      handleFirestoreError(error, OperationType.WRITE, `payment_requests`);
-      setStep('qr');
+      console.error("Payment submission error:", error);
+      handleFirestoreError(error, OperationType.WRITE, 'payment_requests');
+      setStep('utr');
+      alert("Failed to submit payment request. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -194,30 +211,17 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
                   </div>
 
                   <div className="w-full space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-mono text-zinc-500 uppercase tracking-widest">Transaction ID (UTR)</label>
-                      <input 
-                        type="text" 
-                        value={utr}
-                        onChange={(e) => setUtr(e.target.value)}
-                        placeholder="Enter 12-digit UTR number"
-                        className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-500 transition-colors"
-                      />
+                    <div className="bg-zinc-900/50 p-4 rounded-xl border border-zinc-800 text-center">
+                      <p className="text-sm text-zinc-400">Scan the QR code and complete the payment in your UPI app.</p>
+                      <p className="text-xs text-zinc-500 mt-2">After payment, click the button below to verify.</p>
                     </div>
 
                     <button 
-                      onClick={() => handlePaymentComplete('QR_CODE')}
-                      disabled={!utr.trim() || isProcessing}
-                      className="w-full bg-white text-black font-medium text-sm py-4 hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => setStep('utr')}
+                      disabled={isProcessing}
+                      className="w-full bg-white text-black font-bold text-sm py-4 hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(255,255,255,0.1)]"
                     >
-                      {isProcessing ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Submitting...
-                        </>
-                      ) : (
-                        'I have made the payment'
-                      )}
+                      I have made the payment
                     </button>
                     
                     <button 
@@ -230,31 +234,88 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
                 </motion.div>
               )}
 
+              {step === 'utr' && (
+                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                  <div className="text-center space-y-2">
+                    <h3 className="text-xl font-bold text-white">Enter Transaction Details</h3>
+                    <p className="text-sm text-zinc-400">Please provide the UTR number / Transaction ID from your payment app.</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-mono text-zinc-500 uppercase tracking-widest">UTR Number / Transaction ID</label>
+                      <input 
+                        type="text" 
+                        value={utr}
+                        onChange={(e) => setUtr(e.target.value)}
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-4 px-4 text-white focus:outline-none focus:border-zinc-500 transition-colors font-mono"
+                        placeholder="Enter 12-digit UTR number"
+                      />
+                    </div>
+
+                    <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl">
+                      <p className="text-xs text-amber-500 leading-relaxed">
+                        <strong>Important:</strong> Entering a fake or random UTR number will result in permanent account suspension. Our team verifies every transaction manually.
+                      </p>
+                    </div>
+
+                    <button 
+                      onClick={handlePaymentComplete}
+                      disabled={isProcessing || !utr || utr.length < 6}
+                      className="w-full bg-white text-black font-bold text-sm py-4 hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isProcessing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        'Submit for Verification'
+                      )}
+                    </button>
+
+                    <button 
+                      onClick={() => setStep('qr')}
+                      className="w-full py-2 text-xs font-mono text-zinc-500 hover:text-white transition-colors uppercase tracking-widest"
+                    >
+                      Go Back to QR
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
               {step === 'processing' && (
                 <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center py-12 space-y-6 text-center">
-                  <Loader2 className="w-12 h-12 text-zinc-400 animate-spin" />
+                  <div className="relative">
+                    <div className="w-20 h-20 border-4 border-zinc-800 border-t-white rounded-full animate-spin" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Smartphone className="w-8 h-8 text-zinc-500" />
+                    </div>
+                  </div>
                   <div className="space-y-2">
-                    <h3 className="text-lg font-medium text-white uppercase tracking-wider">Submitting Request</h3>
-                    <p className="text-zinc-400 font-mono text-sm">Please wait while we submit your payment verification request</p>
+                    <h3 className="text-xl font-bold text-white uppercase tracking-widest">Submitting Request</h3>
+                    <p className="text-zinc-400 font-mono text-sm max-w-[250px]">Uploading your payment details for verification...</p>
                   </div>
                 </motion.div>
               )}
 
               {step === 'success' && (
                 <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center py-8 space-y-6 text-center">
-                  <div className="w-16 h-16 border border-emerald-500/30 bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-2">
-                    <CheckCircle2 className="w-8 h-8" />
+                  <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 rounded-full shadow-[0_0_30px_rgba(16,185,129,0.2)]">
+                    <CheckCircle2 className="w-10 h-10" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-xl font-medium text-white uppercase tracking-wider">Request Submitted</h3>
-                    <p className="text-zinc-400 font-mono text-sm">Your payment request for ₹{amount}.00 has been submitted.</p>
-                    <p className="text-xs text-zinc-500">Funds will be added to your wallet after admin verification (usually within 15-30 minutes).</p>
+                    <h3 className="text-2xl font-bold text-white uppercase tracking-wider">Request Submitted</h3>
+                    <div className="bg-zinc-900 border border-zinc-800 px-6 py-3 rounded-2xl inline-block mt-2">
+                      <p className="text-emerald-400 font-mono text-lg font-bold">₹{amount}.00 Pending</p>
+                    </div>
+                    <p className="text-zinc-500 text-sm mt-4">Your payment request has been submitted. Funds will be added to your wallet within 30-60 minutes after verification.</p>
                   </div>
                   <button 
                     onClick={resetAndClose}
-                    className="w-full border border-zinc-800 text-white px-6 py-3 hover:bg-zinc-800 transition-colors text-sm font-mono uppercase tracking-widest mt-4"
+                    className="w-full bg-white text-black font-bold py-4 hover:bg-zinc-200 transition-colors text-sm uppercase tracking-widest mt-4 rounded-xl"
                   >
-                    Return to Dashboard
+                    Back to Dashboard
                   </button>
                 </motion.div>
               )}
