@@ -1,12 +1,61 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Image as ImageIcon, CheckCircle, AlertCircle, Link as LinkIcon, Sparkles, Video, Clock, CreditCard, Check, X as CloseIcon } from 'lucide-react';
+import { Upload, Image as ImageIcon, CheckCircle, AlertCircle, Link as LinkIcon, Sparkles, Video } from 'lucide-react';
 import { db, storage } from '../lib/firebase';
-import { collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc, increment, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, getDocs, updateDoc, doc, getDoc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { GoogleGenAI, Type } from "@google/genai";
 
 const CATEGORIES = [
   { id: 'Explore', label: 'Explore Gallery' },
+  // Explore Categories (Sub-categories)
+  { id: 'Fashion Model', label: 'Fashion Model' },
+  { id: 'Fitness Model', label: 'Fitness Model' },
+  { id: 'Glamour Model', label: 'Glamour Model' },
+  { id: 'Traditional Model', label: 'Traditional Model' },
+  { id: 'Casual Lifestyle', label: 'Casual Lifestyle' },
+  { id: 'Product Ads', label: 'Product Ads' },
+  { id: 'Fashion Ads', label: 'Fashion Ads' },
+  { id: 'Fitness Ads', label: 'Fitness Ads' },
+  { id: 'Beauty Ads', label: 'Beauty Ads' },
+  { id: 'Food Ads', label: 'Food Ads' },
+  { id: 'Tech Ads', label: 'Tech Ads' },
+  { id: 'Business Ads', label: 'Business Ads' },
+  { id: 'Social Ads', label: 'Social Ads' },
+  { id: 'Story Ads', label: 'Story Ads' },
+  { id: 'Global Style', label: 'Global Style' },
+  { id: 'Luxury Ads', label: 'Luxury Ads' },
+  { id: 'Ecom Ads', label: 'Ecom Ads' },
+  { id: 'Gaming', label: 'Gaming' },
+  { id: 'Stock Market', label: 'Stock Market' },
+  { id: 'Personal Finance', label: 'Personal Finance' },
+  { id: 'Tech', label: 'Tech' },
+  { id: 'Vlogging', label: 'Vlogging' },
+  { id: 'Cricket', label: 'Cricket' },
+  { id: 'Movies', label: 'Movies' },
+  { id: 'Web Series', label: 'Web Series' },
+  { id: 'Comedy', label: 'Comedy' },
+  { id: 'Podcast', label: 'Podcast' },
+  { id: 'Fitness', label: 'Fitness' },
+  { id: 'Motivation', label: 'Motivation' },
+  { id: 'Education', label: 'Education' },
+  { id: 'Online Earning', label: 'Online Earning' },
+  { id: 'Business Ideas', label: 'Business Ideas' },
+  { id: 'Automobile', label: 'Automobile' },
+  { id: 'Cooking', label: 'Cooking' },
+  { id: 'Real Estate', label: 'Real Estate' },
+  { id: 'Spirituality', label: 'Spirituality' },
+  { id: 'Fashion', label: 'Fashion' },
+  { id: 'Beauty', label: 'Beauty' },
+  { id: 'Parenting', label: 'Parenting' },
+  { id: 'Coding', label: 'Coding' },
+  { id: 'Graphic Design', label: 'Graphic Design' },
+  { id: 'Photography', label: 'Photography' },
+  { id: 'Travel', label: 'Travel' },
+  { id: 'News', label: 'News' },
+  { id: 'Science', label: 'Science' },
+  { id: 'AI', label: 'AI' },
+  { id: 'Government Schemes', label: 'Government Schemes' },
+  // Original Categories with prefixes
   { id: 'AI Influencer: Fashion Model', label: 'AI Influencer: Fashion Model' },
   { id: 'AI Influencer: Fitness Model', label: 'AI Influencer: Fitness Model' },
   { id: 'AI Influencer: Glamour Model', label: 'AI Influencer: Glamour Model' },
@@ -92,9 +141,7 @@ const CATEGORIES = [
 ];
 
 export const AdminPanel = () => {
-  const [activeTab, setActiveTab] = useState<'upload' | 'payments'>('upload');
-  const [paymentRequests, setPaymentRequests] = useState<any[]>([]);
-  const [isLoadingPayments, setIsLoadingPayments] = useState(false);
+  const [activeTab, setActiveTab] = useState<'upload'>('upload');
   
   const [category, setCategory] = useState(CATEGORIES[0].id);
   const [title, setTitle] = useState('');
@@ -117,108 +164,15 @@ export const AdminPanel = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
-    if (activeTab === 'payments') {
-      setIsLoadingPayments(true);
-      const q = query(
-        collection(db, 'payment_requests'),
-        where('status', '==', 'pending'),
-        orderBy('createdAt', 'desc')
-      );
-
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const requests = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setPaymentRequests(requests);
-        setIsLoadingPayments(false);
-      }, (err) => {
-        console.error("Error fetching payment requests:", err);
-        setIsLoadingPayments(false);
-      });
-
-      return () => unsubscribe();
-    }
+    // No longer fetching payment requests
   }, [activeTab]);
 
   const handleApprovePayment = async (request: any) => {
-    try {
-      // 1. Update payment request status
-      await updateDoc(doc(db, 'payment_requests', request.id), {
-        status: 'approved',
-        updatedAt: new Date().toISOString()
-      });
-
-      // 2. Update user wallet
-      const userRef = doc(db, 'users', request.userId);
-      await updateDoc(userRef, {
-        walletBalance: increment(request.amount)
-      });
-
-      // 3. Update or add transaction record
-      if (request.transactionId) {
-        await updateDoc(doc(db, 'users', request.userId, 'transactions', request.transactionId), {
-          status: 'completed',
-          title: 'Wallet Top-up (Success)',
-          description: `₹${request.amount} payment verified and added to wallet`,
-          updatedAt: new Date().toISOString()
-        });
-      } else {
-        await addDoc(collection(db, 'users', request.userId, 'transactions'), {
-          amount: request.amount,
-          type: 'Credit',
-          isCredit: true,
-          status: 'completed',
-          title: 'Wallet Top-up',
-          date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
-          timestamp: new Date().toISOString(),
-          method: request.method,
-          description: `Added ₹${request.amount} to wallet via ${request.method}`,
-          createdAt: new Date().toISOString()
-        });
-      }
-
-      // 4. Add to global payments log
-      await addDoc(collection(db, 'payments'), {
-        uid: request.userId,
-        userEmail: request.userEmail || 'Unknown',
-        amount: request.amount,
-        method: request.method,
-        status: 'completed',
-        utr: request.utr,
-        createdAt: new Date().toISOString()
-      });
-
-      alert('Payment approved and wallet updated!');
-    } catch (err) {
-      console.error("Error approving payment:", err);
-      alert('Failed to approve payment.');
-    }
+    // No longer used
   };
 
   const handleRejectPayment = async (request: any) => {
-    if (!confirm('Are you sure you want to reject this payment request?')) return;
-    try {
-      await updateDoc(doc(db, 'payment_requests', request.id), {
-        status: 'rejected',
-        updatedAt: new Date().toISOString()
-      });
-
-      // Update user's transaction status if it exists
-      if (request.transactionId) {
-        await updateDoc(doc(db, 'users', request.userId, 'transactions', request.transactionId), {
-          status: 'rejected',
-          title: 'Wallet Top-up (Rejected)',
-          description: `₹${request.amount} payment rejected (UTR: ${request.utr})`,
-          updatedAt: new Date().toISOString()
-        });
-      }
-
-      alert('Payment request rejected.');
-    } catch (err) {
-      console.error("Error rejecting payment:", err);
-      alert('Failed to reject payment.');
-    }
+    // No longer used
   };
 
   const generateAIDetails = async (source: 'file' | 'url', fileOrUrl: File | string) => {
@@ -521,12 +475,35 @@ export const AdminPanel = () => {
           
           const itemTitle = imageFiles.length > 1 ? `${title} ${i + 1}` : title;
           
-          await addDoc(collection(db, category), {
+          // Determine target collection and category field
+          let targetCollection = category;
+          let categoryField = category;
+
+          // If it's one of the Explore sub-categories, upload to Explore collection
+          const exploreSubCategories = [
+            "Fashion Model", "Fitness Model", "Glamour Model", "Traditional Model", "Casual Lifestyle",
+            "Product Ads", "Fashion Ads", "Fitness Ads", "Beauty Ads", "Food Ads", "Tech Ads", 
+            "Business Ads", "Social Ads", "Story Ads", "Global Style", "Luxury Ads", "Ecom Ads",
+            "Gaming", "Stock Market", "Personal Finance", "Tech", "Vlogging", "Cricket", "Movies", 
+            "Web Series", "Comedy", "Podcast", "Fitness", "Motivation", "Education", "Online Earning", 
+            "Business Ideas", "Automobile", "Cooking", "Real Estate", "Spirituality", "Fashion", 
+            "Beauty", "Parenting", "Coding", "Graphic Design", "Photography", "Travel", "News", 
+            "Science", "AI", "Government Schemes"
+          ];
+
+          if (exploreSubCategories.includes(category)) {
+            targetCollection = 'Explore';
+          } else if (category === 'Explore') {
+            categoryField = ''; // General explore
+          }
+
+          await addDoc(collection(db, targetCollection), {
             title: itemTitle,
             url: finalImageUrl,
             type: actualMediaType,
             prompt,
             variablePrompt,
+            category: categoryField,
             price,
             likes: 0,
             views: 0,
@@ -544,12 +521,34 @@ export const AdminPanel = () => {
           actualMediaType = 'image';
         }
         
-        await addDoc(collection(db, category), {
+        // Determine target collection and category field
+        let targetCollection = category;
+        let categoryField = category;
+
+        const exploreSubCategories = [
+          "Fashion Model", "Fitness Model", "Glamour Model", "Traditional Model", "Casual Lifestyle",
+          "Product Ads", "Fashion Ads", "Fitness Ads", "Beauty Ads", "Food Ads", "Tech Ads", 
+          "Business Ads", "Social Ads", "Story Ads", "Global Style", "Luxury Ads", "Ecom Ads",
+          "Gaming", "Stock Market", "Personal Finance", "Tech", "Vlogging", "Cricket", "Movies", 
+          "Web Series", "Comedy", "Podcast", "Fitness", "Motivation", "Education", "Online Earning", 
+          "Business Ideas", "Automobile", "Cooking", "Real Estate", "Spirituality", "Fashion", 
+          "Beauty", "Parenting", "Coding", "Graphic Design", "Photography", "Travel", "News", 
+          "Science", "AI", "Government Schemes"
+        ];
+
+        if (exploreSubCategories.includes(category)) {
+          targetCollection = 'Explore';
+        } else if (category === 'Explore') {
+          categoryField = '';
+        }
+
+        await addDoc(collection(db, targetCollection), {
           title,
           url: imageUrl,
           type: actualMediaType,
           prompt,
           variablePrompt,
+          category: categoryField,
           price,
           likes: 0,
           views: 0,
@@ -599,26 +598,10 @@ export const AdminPanel = () => {
           >
             Media Upload
           </button>
-          <button
-            onClick={() => setActiveTab('payments')}
-            className={`px-6 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${
-              activeTab === 'payments' 
-                ? 'bg-white text-black shadow-lg' 
-                : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <CreditCard size={16} />
-            Payments
-            {paymentRequests.length > 0 && (
-              <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                {paymentRequests.length}
-              </span>
-            )}
-          </button>
         </div>
       </div>
 
-      {activeTab === 'upload' ? (
+      {activeTab === 'upload' && (
         <div className="bg-zinc-900 border border-white/10 rounded-3xl p-6 md:p-8">
         {success && (
           <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/50 rounded-xl flex items-center gap-3 text-emerald-400">
@@ -904,72 +887,7 @@ export const AdminPanel = () => {
           </div>
         </form>
       </div>
-      ) : (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-4">
-            {isLoadingPayments ? (
-              <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
-                <Clock className="w-8 h-8 animate-spin mb-4" />
-                <p>Loading pending requests...</p>
-              </div>
-            ) : paymentRequests.length === 0 ? (
-              <div className="bg-zinc-900 border border-white/10 rounded-3xl p-12 text-center">
-                <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="text-zinc-600" />
-                </div>
-                <h3 className="text-white font-medium mb-1">All caught up!</h3>
-                <p className="text-zinc-500 text-sm">No pending payment requests to verify.</p>
-              </div>
-            ) : (
-              paymentRequests.map((request) => (
-                <div key={request.id} className="bg-zinc-900 border border-white/10 rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl">
-                      <CreditCard size={24} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-lg font-bold text-white">₹{request.amount}</h3>
-                        <span className="text-xs px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-full uppercase tracking-wider font-mono">
-                          {request.method}
-                        </span>
-                      </div>
-                      <p className="text-sm text-zinc-400 mb-2">User ID: <span className="font-mono text-xs">{request.userId}</span></p>
-                      <div className="flex flex-wrap gap-4 text-xs font-mono">
-                        <div className="flex items-center gap-1.5 text-zinc-500">
-                          <span className="text-zinc-600 uppercase">UTR:</span>
-                          <span className="text-white select-all">{request.utr}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-zinc-500">
-                          <Clock size={12} />
-                          <span>{new Date(request.createdAt).toLocaleString()}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => handleRejectPayment(request)}
-                      className="flex-1 md:flex-none px-6 py-2.5 rounded-xl border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-colors text-sm font-medium flex items-center justify-center gap-2"
-                    >
-                      <CloseIcon size={16} />
-                      Reject
-                    </button>
-                    <button
-                      onClick={() => handleApprovePayment(request)}
-                      className="flex-1 md:flex-none px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-colors text-sm font-medium flex items-center justify-center gap-2"
-                    >
-                      <Check size={16} />
-                      Approve
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+    )}
+  </div>
+);
 };

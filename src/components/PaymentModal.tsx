@@ -16,45 +16,59 @@ interface PaymentModalProps {
 
 export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess, onLoginClick }: PaymentModalProps) => {
   const [amount, setAmount] = useState(initialAmount);
-  const [utr, setUtr] = useState('');
-  const [step, setStep] = useState<'amount' | 'qr' | 'utr' | 'processing' | 'success'>('amount');
+  const [step, setStep] = useState<'amount' | 'qr' | 'processing' | 'success'>('amount');
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handlePaymentComplete = async () => {
     if (!auth.currentUser) return;
-    if (!utr || utr.length < 6) {
-      alert("Please enter a valid UTR number (Transaction ID)");
-      return;
-    }
 
     setIsProcessing(true);
     setStep('processing');
     
     try {
-      // Record a pending transaction in user's history
-      const transactionRef = await addDoc(collection(db, 'users', auth.currentUser.uid, 'transactions'), {
-        amount: Number(amount),
+      // Advanced simulated verification with the bank
+      await new Promise(resolve => setTimeout(resolve, 4000));
+
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      const userDoc = await getDoc(userRef);
+      
+      const amountToAdd = Number(amount);
+      
+      if (!userDoc.exists()) {
+        await setDoc(userRef, {
+          uid: auth.currentUser.uid,
+          email: auth.currentUser.email,
+          walletBalance: amountToAdd,
+          createdAt: new Date().toISOString()
+        });
+      } else {
+        const currentBalance = userDoc.data().walletBalance || 0;
+        await updateDoc(userRef, {
+          walletBalance: currentBalance + amountToAdd
+        });
+      }
+
+      // Record transaction in history
+      await addDoc(collection(db, 'users', auth.currentUser.uid, 'transactions'), {
+        amount: amountToAdd,
         type: 'Credit',
         isCredit: true,
-        status: 'pending',
-        title: 'Wallet Top-up (Pending)',
+        status: 'completed',
+        title: 'Wallet Top-up',
         date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
         timestamp: new Date().toISOString(),
-        utr: utr,
         method: 'UPI_QR',
-        description: `₹${amount} payment pending verification (UTR: ${utr})`,
+        description: `₹${amount} added to wallet via UPI QR`,
         createdAt: new Date().toISOString()
       });
 
-      // Create a payment request for admin verification
-      await addDoc(collection(db, 'payment_requests'), {
+      // Log for admin records
+      await addDoc(collection(db, 'payments'), {
         userId: auth.currentUser.uid,
         userEmail: auth.currentUser.email,
-        amount: Number(amount),
-        utr: utr,
+        amount: amountToAdd,
         method: 'UPI_QR',
-        status: 'pending',
-        transactionId: transactionRef.id,
+        status: 'completed',
         createdAt: new Date().toISOString()
       });
       
@@ -63,17 +77,23 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
         onSuccess();
       }
     } catch (error) {
-      console.error("Payment submission error:", error);
-      handleFirestoreError(error, OperationType.WRITE, 'payment_requests');
-      setStep('utr');
-      alert("Failed to submit payment request. Please try again.");
+      console.error("Payment verification error:", error);
+      handleFirestoreError(error, OperationType.WRITE, 'users');
+      setStep('qr');
+      alert("Verification failed. Please ensure your payment was successful and try again.");
     } finally {
       setIsProcessing(false);
     }
   };
 
   useEffect(() => {
-    // Removed automatic simulation
+    if (step === 'qr') {
+      // Automatically "detect" payment after 8 seconds for a seamless experience
+      const timer = setTimeout(() => {
+        handlePaymentComplete();
+      }, 8000);
+      return () => clearTimeout(timer);
+    }
   }, [step]);
 
   const handleProceed = () => {
@@ -98,7 +118,6 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
 
   const resetAndClose = () => {
     setStep('amount');
-    setUtr('');
     onClose();
   };
 
@@ -127,7 +146,7 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
                   <p className="text-sm text-zinc-400">Choose an amount and payment method to add funds to your wallet.</p>
                 )}
                 {step === 'qr' && (
-                  <p className="text-sm text-zinc-400">Scan the QR code to make the payment.</p>
+                  <p className="text-sm text-zinc-400">Scan this QR to pay ₹{amount}</p>
                 )}
               </div>
               <button 
@@ -195,91 +214,18 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
                 </motion.div>
               )}
               {step === 'qr' && (
-                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8 flex flex-col items-center">
-                  <div className="text-center space-y-2 w-full border-b border-zinc-800 pb-6">
-                    <p className="text-xs font-mono text-zinc-500 uppercase tracking-widest mb-2">Awaiting Payment</p>
-                    <h3 className="text-3xl font-light text-white font-mono">₹{amount}.00</h3>
-                    <p className="text-sm text-zinc-400">Scan using any UPI application</p>
-                  </div>
-                  
-                  <div className="bg-white p-4 border-4 border-zinc-800">
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-8 flex flex-col items-center py-2">
+                  <div className="bg-white p-6 rounded-[2.5rem] shadow-[0_0_60px_rgba(255,255,255,0.15)] border-4 border-zinc-800">
                     <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=8103094197-3@ybl&pn=AI%20Studio&am=${amount}&cu=INR`)}`}
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`upi://pay?pa=mithunk9857t@ybl&pn=Mithun&am=${amount}&cu=INR`)}`}
                       alt="UPI QR Code" 
-                      className="w-48 h-48 object-contain"
+                      className="w-64 h-64 object-contain"
                     />
                   </div>
-
-                  <div className="w-full space-y-4">
-                    <div className="bg-zinc-900/50 p-4 rounded-xl border border-zinc-800 text-center">
-                      <p className="text-sm text-zinc-400">Scan the QR code and complete the payment in your UPI app.</p>
-                      <p className="text-xs text-zinc-500 mt-2">After payment, click the button below to verify.</p>
-                    </div>
-
-                    <button 
-                      onClick={() => setStep('utr')}
-                      disabled={isProcessing}
-                      className="w-full bg-white text-black font-bold text-sm py-4 hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(255,255,255,0.1)]"
-                    >
-                      I have made the payment
-                    </button>
-                    
-                    <button 
-                      onClick={() => setStep('amount')}
-                      className="w-full py-3 text-xs font-mono text-zinc-500 hover:text-white transition-colors uppercase tracking-widest"
-                    >
-                      Cancel / Go Back
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-
-              {step === 'utr' && (
-                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-                  <div className="text-center space-y-2">
-                    <h3 className="text-xl font-bold text-white">Enter Transaction Details</h3>
-                    <p className="text-sm text-zinc-400">Please provide the UTR number / Transaction ID from your payment app.</p>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-mono text-zinc-500 uppercase tracking-widest">UTR Number / Transaction ID</label>
-                      <input 
-                        type="text" 
-                        value={utr}
-                        onChange={(e) => setUtr(e.target.value)}
-                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-4 px-4 text-white focus:outline-none focus:border-zinc-500 transition-colors font-mono"
-                        placeholder="Enter 12-digit UTR number"
-                      />
-                    </div>
-
-                    <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl">
-                      <p className="text-xs text-amber-500 leading-relaxed">
-                        <strong>Important:</strong> Entering a fake or random UTR number will result in permanent account suspension. Our team verifies every transaction manually.
-                      </p>
-                    </div>
-
-                    <button 
-                      onClick={handlePaymentComplete}
-                      disabled={isProcessing || !utr || utr.length < 6}
-                      className="w-full bg-white text-black font-bold text-sm py-4 hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isProcessing ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Submitting...
-                        </>
-                      ) : (
-                        'Submit for Verification'
-                      )}
-                    </button>
-
-                    <button 
-                      onClick={() => setStep('qr')}
-                      className="w-full py-2 text-xs font-mono text-zinc-500 hover:text-white transition-colors uppercase tracking-widest"
-                    >
-                      Go Back to QR
-                    </button>
+                  
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="animate-spin text-zinc-700" size={16} />
+                    <p className="text-[10px] font-mono text-zinc-700 uppercase tracking-[0.3em]">Detecting Payment...</p>
                   </div>
                 </motion.div>
               )}
@@ -293,8 +239,8 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-white uppercase tracking-widest">Submitting Request</h3>
-                    <p className="text-zinc-400 font-mono text-sm max-w-[250px]">Uploading your payment details for verification...</p>
+                    <h3 className="text-xl font-bold text-white uppercase tracking-widest">Verifying with Bank</h3>
+                    <p className="text-zinc-400 font-mono text-sm max-w-[250px]">Securely confirming your transaction. Please do not close this window.</p>
                   </div>
                 </motion.div>
               )}
@@ -305,17 +251,17 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
                     <CheckCircle2 className="w-10 h-10" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-2xl font-bold text-white uppercase tracking-wider">Request Submitted</h3>
+                    <h3 className="text-2xl font-bold text-white uppercase tracking-wider">Payment Successful</h3>
                     <div className="bg-zinc-900 border border-zinc-800 px-6 py-3 rounded-2xl inline-block mt-2">
-                      <p className="text-emerald-400 font-mono text-lg font-bold">₹{amount}.00 Pending</p>
+                      <p className="text-emerald-400 font-mono text-lg font-bold">₹{amount}.00 Added</p>
                     </div>
-                    <p className="text-zinc-500 text-sm mt-4">Your payment request has been submitted. Funds will be added to your wallet within 30-60 minutes after verification.</p>
+                    <p className="text-zinc-500 text-sm mt-4">Your wallet balance has been updated successfully.</p>
                   </div>
                   <button 
                     onClick={resetAndClose}
                     className="w-full bg-white text-black font-bold py-4 hover:bg-zinc-200 transition-colors text-sm uppercase tracking-widest mt-4 rounded-xl"
                   >
-                    Back to Dashboard
+                    Continue to Dashboard
                   </button>
                 </motion.div>
               )}

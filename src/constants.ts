@@ -11,6 +11,7 @@ export interface ImageItem {
   type?: 'image' | 'video';
   price?: number;
   collection?: string;
+  category?: string;
 }
 
 export const GENERATOR_SYSTEMS = [

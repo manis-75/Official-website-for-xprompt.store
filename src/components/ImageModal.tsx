@@ -57,9 +57,12 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
       const newViews = (image.views || 0) + 1;
       const targetCollection = image.collection || activeTab || systemType;
       
+      // Remove undefined values to prevent Firestore errors
+      const cleanImage = Object.fromEntries(Object.entries(image).filter(([_, v]) => v !== undefined));
+
       try {
         await setDoc(doc(db, targetCollection, image.id), {
-          ...image,
+          ...cleanImage,
           views: newViews
         }, { merge: true });
       } catch (error) {
@@ -223,8 +226,11 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
       const newLikes = (image.likes || 0) + (newLikedState ? 1 : -1);
       const targetCollection = image.collection || activeTab || systemType;
       
+      // Remove undefined values to prevent Firestore errors
+      const cleanImage = Object.fromEntries(Object.entries(image).filter(([_, v]) => v !== undefined));
+
       await setDoc(doc(db, targetCollection, image.id), {
-        ...image,
+        ...cleanImage,
         likes: newLikes
       }, { merge: true });
     } catch (error) {
