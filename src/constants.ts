@@ -16,26 +16,26 @@ export interface ImageItem {
 }
 
 export const IMAGE_AI_WEBSITES = [
-  "ChatGPT Image",
+  "ChatGPT",
   "FLUX",
-  "Gemini Image",
-  "Grok Image",
+  "Gemini",
+  "Grok",
   "Hunyuan",
   "Ideogram",
   "Imagen",
   "Leonardo Ai",
   "Midjourney",
-  "Qwen Image",
+  "Qwen",
   "Recraft",
   "Seedream",
   "Stable Diffusion"
 ];
 
 export const VIDEO_AI_WEBSITES = [
-  "Grok Video",
+  "Grok",
   "Hailuo AI",
   "KLING AI",
-  "Midjourney Video",
+  "Midjourney",
   "Seedance",
   "Sora",
   "Veo",
@@ -43,23 +43,21 @@ export const VIDEO_AI_WEBSITES = [
 ];
 
 export const AI_WEBSITE_LOGOS: Record<string, string> = {
-  "ChatGPT Image": "https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg",
+  "ChatGPT": "https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg",
   "FLUX": "https://api.dicebear.com/7.x/initials/svg?seed=FX&backgroundColor=000000",
-  "Gemini Image": "https://www.gstatic.com/lamda/images/gemini_sparkle_v002.svg",
-  "Grok Image": "https://api.dicebear.com/7.x/initials/svg?seed=GK&backgroundColor=000000",
+  "Gemini": "https://www.gstatic.com/lamda/images/gemini_sparkle_v002.svg",
+  "Grok": "https://api.dicebear.com/7.x/initials/svg?seed=GK&backgroundColor=000000",
   "Hunyuan": "https://api.dicebear.com/7.x/initials/svg?seed=HY&backgroundColor=000000",
   "Ideogram": "https://api.dicebear.com/7.x/initials/svg?seed=ID&backgroundColor=000000",
   "Imagen": "https://api.dicebear.com/7.x/initials/svg?seed=IM&backgroundColor=000000",
   "Leonardo Ai": "https://api.dicebear.com/7.x/initials/svg?seed=LA&backgroundColor=000000",
   "Midjourney": "https://api.dicebear.com/7.x/initials/svg?seed=MJ&backgroundColor=000000",
-  "Qwen Image": "https://api.dicebear.com/7.x/initials/svg?seed=QW&backgroundColor=000000",
+  "Qwen": "https://api.dicebear.com/7.x/initials/svg?seed=QW&backgroundColor=000000",
   "Recraft": "https://api.dicebear.com/7.x/initials/svg?seed=RC&backgroundColor=000000",
   "Seedream": "https://api.dicebear.com/7.x/initials/svg?seed=SD&backgroundColor=000000",
   "Stable Diffusion": "https://api.dicebear.com/7.x/initials/svg?seed=SD&backgroundColor=000000",
-  "Grok Video": "https://api.dicebear.com/7.x/initials/svg?seed=GV&backgroundColor=000000",
   "Hailuo AI": "https://api.dicebear.com/7.x/initials/svg?seed=HL&backgroundColor=000000",
   "KLING AI": "https://api.dicebear.com/7.x/initials/svg?seed=KL&backgroundColor=000000",
-  "Midjourney Video": "https://api.dicebear.com/7.x/initials/svg?seed=MV&backgroundColor=000000",
   "Seedance": "https://api.dicebear.com/7.x/initials/svg?seed=SN&backgroundColor=000000",
   "Sora": "https://api.dicebear.com/7.x/initials/svg?seed=SR&backgroundColor=000000",
   "Veo": "https://api.dicebear.com/7.x/initials/svg?seed=VO&backgroundColor=000000",

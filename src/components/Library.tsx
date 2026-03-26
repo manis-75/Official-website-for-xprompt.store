@@ -97,9 +97,9 @@ export const Library = () => {
                 <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors" />
               </div>
               
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-4">
-                {/* Top: AI Model Badge */}
-                <div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                {/* Bottom: AI Model, Title and Stats */}
+                <div className="flex flex-col gap-1 text-white">
                   {image.aiModels && image.aiModels.length > 0 && (
                     <div className="flex items-center gap-2">
                       <div className="w-5 h-5 rounded-full overflow-hidden bg-white/10 backdrop-blur-md flex items-center justify-center p-0.5 border border-white/20">
@@ -119,10 +119,6 @@ export const Library = () => {
                       </span>
                     </div>
                   )}
-                </div>
-
-                {/* Bottom: Title and Stats */}
-                <div className="flex flex-col gap-1 text-white">
                   <div className="flex items-center justify-between">
                     <span className="font-medium truncate mr-2 text-sm">{image.title}</span>
                     <div className="flex items-center gap-3 shrink-0">
