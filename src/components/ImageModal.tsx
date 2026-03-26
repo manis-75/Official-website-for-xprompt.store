@@ -279,8 +279,8 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
         <div className="p-6 flex flex-col gap-6">
           <div>
             {image.aiModels && image.aiModels.length > 0 && (
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-6 h-6 rounded-full overflow-hidden bg-white/10 flex items-center justify-center p-1 border border-white/20">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-6 h-6 rounded-full overflow-hidden bg-black/60 backdrop-blur-md flex items-center justify-center p-1 border border-white/20">
                   {AI_WEBSITE_LOGOS[image.aiModels[0]] ? (
                     <img 
                       src={AI_WEBSITE_LOGOS[image.aiModels[0]]} 
@@ -292,7 +292,7 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
                     <Sparkles size={12} className="text-indigo-400" />
                   )}
                 </div>
-                <span className="text-xs font-bold uppercase tracking-widest text-indigo-400">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-white drop-shadow-md bg-black/40 px-2 py-0.5 rounded-md backdrop-blur-sm border border-white/5">
                   {image.aiModels[0]}
                 </span>
               </div>
