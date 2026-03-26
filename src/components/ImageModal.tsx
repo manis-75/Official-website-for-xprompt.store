@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Heart, Eye, Download, Share2, Copy, Check, ShoppingCart, Lock } from 'lucide-react';
-import { ImageItem } from '../constants';
+import { X, Heart, Eye, Download, Share2, Copy, Check, ShoppingCart, Lock, Sparkles } from 'lucide-react';
+import { ImageItem, AI_WEBSITE_LOGOS } from '../constants';
 import { db, auth } from '../lib/firebase';
 import { doc, setDoc, getDoc, updateDoc, collection, addDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/errorHandling';
@@ -278,6 +278,25 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
         {/* Details */}
         <div className="p-6 flex flex-col gap-6">
           <div>
+            {image.aiModels && image.aiModels.length > 0 && (
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-6 h-6 rounded-full overflow-hidden bg-white/10 flex items-center justify-center p-1 border border-white/20">
+                  {AI_WEBSITE_LOGOS[image.aiModels[0]] ? (
+                    <img 
+                      src={AI_WEBSITE_LOGOS[image.aiModels[0]]} 
+                      alt={image.aiModels[0]} 
+                      className="w-full h-full object-contain"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <Sparkles size={12} className="text-indigo-400" />
+                  )}
+                </div>
+                <span className="text-xs font-bold uppercase tracking-widest text-indigo-400">
+                  {image.aiModels[0]}
+                </span>
+              </div>
+            )}
             <div className="flex items-start justify-between mb-2">
               <h2 className="text-xl font-bold text-white">{image.title}</h2>
               <div className="bg-indigo-600/20 text-indigo-400 px-3 py-1 rounded-full text-sm font-bold border border-indigo-500/30 shrink-0 ml-4">
