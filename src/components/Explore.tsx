@@ -277,12 +277,12 @@ export const Explore = () => {
                   </div>
                 )}
 
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-4">
-                  {/* Top Left: AI Model Badge */}
-                  <div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                  {/* Bottom: AI Model, Title and Stats */}
+                  <div className="flex flex-col gap-2 text-white">
                     {image.aiModels && image.aiModels.length > 0 && (
                       <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded-full overflow-hidden bg-black/60 backdrop-blur-md flex items-center justify-center p-0.5 border border-white/20">
+                        <div className="w-5 h-5 rounded-full overflow-hidden bg-white/10 backdrop-blur-md flex items-center justify-center p-0.5 border border-white/20">
                           {AI_WEBSITE_LOGOS[image.aiModels[0]] ? (
                             <img 
                               src={AI_WEBSITE_LOGOS[image.aiModels[0]]} 
@@ -294,17 +294,14 @@ export const Explore = () => {
                             <Sparkles size={10} className="text-indigo-400" />
                           )}
                         </div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-white drop-shadow-md bg-black/40 px-2 py-0.5 rounded-md backdrop-blur-sm border border-white/5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-white/90 drop-shadow-md">
                           {image.aiModels[0]}
                         </span>
                       </div>
                     )}
-                  </div>
 
-                  {/* Bottom: Title and Stats */}
-                  <div className="flex flex-col gap-1 text-white">
                     <div className="flex items-center justify-between">
-                      <span className="font-medium truncate mr-2">{image.title}</span>
+                      <span className="font-medium truncate mr-2 text-sm">{image.title}</span>
                       <div className="flex items-center gap-3 shrink-0">
                         <div className="flex items-center gap-1 text-sm bg-black/40 backdrop-blur-md px-2 py-1 rounded-full">
                           <Eye size={14} />

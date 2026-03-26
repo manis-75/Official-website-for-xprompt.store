@@ -638,115 +638,201 @@ export const AdminPanel = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left Column - Image Upload */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-medium text-zinc-300">{mediaType === 'image' ? 'Image' : 'Video'} Source</label>
+            {/* Left Column - Media Upload */}
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-zinc-300">Content Type</label>
+                <div className="flex p-1 bg-zinc-800 rounded-2xl border border-white/5">
+                  <button
+                    type="button"
+                    onClick={() => setMediaType('image')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${
+                      mediaType === 'image' 
+                        ? 'bg-indigo-600 text-white shadow-lg' 
+                        : 'text-zinc-500 hover:text-zinc-300'
+                    }`}
+                  >
+                    <ImageIcon size={18} />
+                    IMAGE
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMediaType('video')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${
+                      mediaType === 'video' 
+                        ? 'bg-indigo-600 text-white shadow-lg' 
+                        : 'text-zinc-500 hover:text-zinc-300'
+                    }`}
+                  >
+                    <Video size={18} />
+                    VIDEO
+                  </button>
+                </div>
               </div>
 
-              <div className="flex p-1 bg-zinc-800/50 rounded-xl border border-zinc-700/50">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUploadMethod('file');
-                    setImagePreview(imageFiles.length > 0 ? URL.createObjectURL(imageFiles[0]) : null);
-                  }}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg transition-all ${
-                    uploadMethod === 'file' 
-                      ? 'bg-zinc-700 text-white shadow-sm' 
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50'
-                  }`}
-                >
-                  <Upload size={16} />
-                  Upload File
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUploadMethod('url');
-                    setImagePreview(imageUrl || null);
-                  }}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg transition-all ${
-                    uploadMethod === 'url' 
-                      ? 'bg-zinc-700 text-white shadow-sm' 
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50'
-                  }`}
-                >
-                  <LinkIcon size={16} />
-                  Paste URL
-                </button>
-              </div>
-              
-              {uploadMethod === 'file' ? (
-                <div 
-                  className="relative aspect-square md:aspect-[4/5] rounded-2xl border-2 border-dashed border-zinc-700 hover:border-indigo-500/50 bg-zinc-800/50 transition-colors overflow-hidden flex flex-col items-center justify-center cursor-pointer group"
-                  onClick={() => document.getElementById('image-upload')?.click()}
-                >
-                  {imagePreview ? (
-                    <>
-                      {mediaType === 'video' ? (
+              <div className="space-y-4">
+                {mediaType === 'video' ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-zinc-300">Video URL (YouTube, Vimeo, etc.)</label>
+                      <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
+                          <LinkIcon size={18} />
+                        </div>
+                        <input
+                          type="url"
+                          value={imageUrl}
+                          onChange={(e) => {
+                            handleUrlChange(e);
+                            setUploadMethod('url');
+                          }}
+                          onBlur={handleUrlBlur}
+                          placeholder="Paste video URL here..."
+                          className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-zinc-600 text-[10px] font-bold uppercase tracking-widest">
+                      <div className="h-px flex-1 bg-zinc-800"></div>
+                      <span>OR UPLOAD FILE</span>
+                      <div className="h-px flex-1 bg-zinc-800"></div>
+                    </div>
+
+                    <div 
+                      className="relative aspect-square md:aspect-[4/5] rounded-2xl border-2 border-dashed border-zinc-700 hover:border-indigo-500/50 bg-zinc-800/50 transition-colors overflow-hidden flex flex-col items-center justify-center cursor-pointer group"
+                      onClick={() => {
+                        setUploadMethod('file');
+                        document.getElementById('image-upload')?.click();
+                      }}
+                    >
+                      {imagePreview && uploadMethod === 'file' ? (
                         <video src={imagePreview} controls className="w-full h-full object-contain bg-black" />
+                      ) : imagePreview && uploadMethod === 'url' ? (
+                        <div className="w-full h-full flex items-center justify-center bg-black/40">
+                          <div className="text-center p-4">
+                            <Video size={48} className="mx-auto mb-2 text-indigo-400" />
+                            <p className="text-xs text-zinc-300 line-clamp-2">{imageUrl}</p>
+                          </div>
+                        </div>
                       ) : (
-                        <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                      )}
-                      {imageFiles.length > 1 && (
-                        <div className="absolute top-4 right-4 bg-indigo-600 text-white px-3 py-1 rounded-full text-sm font-medium shadow-lg">
-                          +{imageFiles.length - 1} more
+                        <div className="flex flex-col items-center text-zinc-500 group-hover:text-indigo-400 transition-colors">
+                          <Upload size={32} className="mb-3" />
+                          <span className="text-sm font-medium">Click to upload video(s)</span>
+                          <span className="text-xs mt-1 opacity-70">MP4, WebM up to 50MB</span>
                         </div>
                       )}
-                    </>
-                  ) : (
-                    <div className="flex flex-col items-center text-zinc-500 group-hover:text-indigo-400 transition-colors">
-                      <Upload size={32} className="mb-3" />
-                      <span className="text-sm font-medium">Click to upload {mediaType}(s)</span>
-                      <span className="text-xs mt-1 opacity-70">
-                        {mediaType === 'image' ? 'PNG, JPG up to 10MB' : 'MP4, WebM up to 50MB'}
-                      </span>
+                      <input 
+                        id="image-upload" 
+                        type="file" 
+                        multiple
+                        accept="video/*" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          handleImageChange(e);
+                          setUploadMethod('file');
+                        }}
+                      />
                     </div>
-                  )}
-                  <input 
-                    id="image-upload" 
-                    type="file" 
-                    multiple
-                    accept={mediaType === 'image' ? "image/*" : "video/*"} 
-                    className="hidden" 
-                    onChange={handleImageChange}
-                  />
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <input
-                    type="url"
-                    value={imageUrl}
-                    onChange={handleUrlChange}
-                    onBlur={handleUrlBlur}
-                    placeholder={mediaType === 'image' ? "https://example.com/image.jpg" : "https://example.com/video.mp4"}
-                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  
-                  <div className="relative aspect-square md:aspect-[4/5] rounded-2xl border border-zinc-700 overflow-hidden bg-zinc-800/50 flex flex-col items-center justify-center">
-                    {imagePreview ? (
-                      mediaType === 'video' ? (
-                        <video src={imagePreview} controls className="w-full h-full object-contain bg-black" />
-                      ) : (
-                        <img 
-                          src={imagePreview} 
-                          alt="Preview" 
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x500?text=Invalid+Image+URL';
-                          }}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex p-1 bg-zinc-800/50 rounded-xl border border-zinc-700/50">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUploadMethod('file');
+                          setImagePreview(imageFiles.length > 0 ? URL.createObjectURL(imageFiles[0]) : null);
+                        }}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg transition-all ${
+                          uploadMethod === 'file' 
+                            ? 'bg-zinc-700 text-white shadow-sm' 
+                            : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50'
+                        }`}
+                      >
+                        <Upload size={16} />
+                        Upload File
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUploadMethod('url');
+                          setImagePreview(imageUrl || null);
+                        }}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg transition-all ${
+                          uploadMethod === 'url' 
+                            ? 'bg-zinc-700 text-white shadow-sm' 
+                            : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50'
+                        }`}
+                      >
+                        <LinkIcon size={16} />
+                        Paste URL
+                      </button>
+                    </div>
+
+                    {uploadMethod === 'file' ? (
+                      <div 
+                        className="relative aspect-square md:aspect-[4/5] rounded-2xl border-2 border-dashed border-zinc-700 hover:border-indigo-500/50 bg-zinc-800/50 transition-colors overflow-hidden flex flex-col items-center justify-center cursor-pointer group"
+                        onClick={() => document.getElementById('image-upload')?.click()}
+                      >
+                        {imagePreview ? (
+                          <>
+                            <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                            {imageFiles.length > 1 && (
+                              <div className="absolute top-4 right-4 bg-indigo-600 text-white px-3 py-1 rounded-full text-sm font-medium shadow-lg">
+                                +{imageFiles.length - 1} more
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center text-zinc-500 group-hover:text-indigo-400 transition-colors">
+                            <Upload size={32} className="mb-3" />
+                            <span className="text-sm font-medium">Click to upload image(s)</span>
+                            <span className="text-xs mt-1 opacity-70">PNG, JPG up to 10MB</span>
+                          </div>
+                        )}
+                        <input 
+                          id="image-upload" 
+                          type="file" 
+                          multiple
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={handleImageChange}
                         />
-                      )
+                      </div>
                     ) : (
-                      <div className="flex flex-col items-center text-zinc-600">
-                        {mediaType === 'video' ? <Video size={32} className="mb-3 opacity-50" /> : <ImageIcon size={32} className="mb-3 opacity-50" />}
-                        <span className="text-sm font-medium">{mediaType === 'image' ? 'Image' : 'Video'} preview will appear here</span>
+                      <div className="space-y-4">
+                        <input
+                          type="url"
+                          value={imageUrl}
+                          onChange={handleUrlChange}
+                          onBlur={handleUrlBlur}
+                          placeholder="https://example.com/image.jpg"
+                          className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        
+                        <div className="relative aspect-square md:aspect-[4/5] rounded-2xl border border-zinc-700 overflow-hidden bg-zinc-800/50 flex flex-col items-center justify-center">
+                          {imagePreview ? (
+                            <img 
+                              src={imagePreview} 
+                              alt="Preview" 
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x500?text=Invalid+Image+URL';
+                              }}
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center text-zinc-600">
+                              <ImageIcon size={32} className="mb-3 opacity-50" />
+                              <span className="text-sm font-medium">Image preview will appear here</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {/* Right Column - Details */}
@@ -841,23 +927,34 @@ export const AdminPanel = () => {
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-zinc-300 italic">What kind of content does your prompt generate?</label>
-                <div className="relative">
-                  <select
-                    value={mediaType}
-                    onChange={(e) => setMediaType(e.target.value as 'image' | 'video')}
-                    className="w-full bg-[#2A2B3D] border border-zinc-700/50 text-white rounded-xl px-4 py-3 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="image">Images</option>
-                    <option value="video">Videos</option>
-                  </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={18} />
-                </div>
-              </div>
-
               <div className="space-y-4 pt-2">
-                <h3 className="text-xl font-bold text-white">Model</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-white">Model</h3>
+                  <div className="flex p-1 bg-zinc-800 rounded-xl border border-white/5">
+                    <button
+                      type="button"
+                      onClick={() => setMediaType('image')}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        mediaType === 'image' 
+                          ? 'bg-indigo-600 text-white shadow-lg' 
+                          : 'text-zinc-500 hover:text-zinc-300'
+                      }`}
+                    >
+                      IMAGE
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMediaType('video')}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        mediaType === 'video' 
+                          ? 'bg-indigo-600 text-white shadow-lg' 
+                          : 'text-zinc-500 hover:text-zinc-300'
+                      }`}
+                    >
+                      VIDEO
+                    </button>
+                  </div>
+                </div>
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-zinc-300 italic">Select the AI model your prompt uses</label>
                   <div className="relative">
