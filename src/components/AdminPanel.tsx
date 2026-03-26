@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Image as ImageIcon, CheckCircle, AlertCircle, Link as LinkIcon, Sparkles, Video, ChevronDown, X } from 'lucide-react';
-import { db, storage } from '../lib/firebase';
+import { Image as ImageIcon, CheckCircle, AlertCircle, Link as LinkIcon, Sparkles, Video, ChevronDown, X } from 'lucide-react';
+import { db } from '../lib/firebase';
 import { collection, addDoc, getDocs, updateDoc, doc, getDoc, setDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { GoogleGenAI, Type } from "@google/genai";
 import { IMAGE_AI_WEBSITES, VIDEO_AI_WEBSITES } from '../constants';
 
@@ -153,14 +152,11 @@ export const AdminPanel = () => {
   const [showModelList, setShowModelList] = useState(false);
   const [price, setPrice] = useState<number>(0);
   
-  const [uploadMethod, setUploadMethod] = useState<'file' | 'url'>('file');
   const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imageUrl, setImageUrl] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<{current: number, total: number} | null>(null);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   
@@ -183,8 +179,8 @@ export const AdminPanel = () => {
     // No longer used
   };
 
-  const generateAIDetails = async (source: 'file' | 'url', fileOrUrl: File | string) => {
-    if (!isAutoGenerate) return;
+  const generateAIDetails = async (url: string) => {
+    if (!isAutoGenerate || !url) return;
     setIsGenerating(true);
     try {
       let base64 = '';
@@ -197,38 +193,31 @@ export const AdminPanel = () => {
         let isYouTube = false;
         let youtubeThumbnailUrl = '';
         
-        if (source === 'file') {
-          objectUrl = URL.createObjectURL(fileOrUrl as File);
-          videoSrc = objectUrl;
+        // Check if it's a YouTube URL
+        const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+        if (ytMatch && ytMatch[1]) {
+          isYouTube = true;
+          youtubeThumbnailUrl = `https://img.youtube.com/vi/${ytMatch[1]}/maxresdefault.jpg`;
         } else {
-          const url = fileOrUrl as string;
-          
-          // Check if it's a YouTube URL
-          const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
-          if (ytMatch && ytMatch[1]) {
-            isYouTube = true;
-            youtubeThumbnailUrl = `https://img.youtube.com/vi/${ytMatch[1]}/maxresdefault.jpg`;
-          } else {
+          try {
+            // Try fetching directly first
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Network response was not ok');
+            const blob = await response.blob();
+            objectUrl = URL.createObjectURL(blob);
+            videoSrc = objectUrl;
+          } catch (e) {
             try {
-              // Try fetching directly first
-              const response = await fetch(url);
-              if (!response.ok) throw new Error('Network response was not ok');
+              // Fallback to CORS proxy
+              const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+              const response = await fetch(proxyUrl);
+              if (!response.ok) throw new Error('Proxy network response was not ok');
               const blob = await response.blob();
               objectUrl = URL.createObjectURL(blob);
               videoSrc = objectUrl;
-            } catch (e) {
-              try {
-                // Fallback to CORS proxy
-                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-                const response = await fetch(proxyUrl);
-                if (!response.ok) throw new Error('Proxy network response was not ok');
-                const blob = await response.blob();
-                objectUrl = URL.createObjectURL(blob);
-                videoSrc = objectUrl;
-              } catch (proxyErr) {
-                // Last resort, try direct URL with crossOrigin
-                videoSrc = url;
-              }
+            } catch (proxyErr) {
+              // Last resort, try direct URL with crossOrigin
+              videoSrc = url;
             }
           }
         }
@@ -304,20 +293,22 @@ export const AdminPanel = () => {
           }
         }
       } else {
-        if (source === 'file') {
-          const file = fileOrUrl as File;
-          mimeType = file.type;
+        try {
+          const response = await fetch(url);
+          if (!response.ok) throw new Error('Network response was not ok');
+          const blob = await response.blob();
+          mimeType = blob.type || 'image/jpeg';
           base64 = await new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.readAsDataURL(file);
+            reader.readAsDataURL(blob);
             reader.onload = () => resolve((reader.result as string).split(',')[1]);
             reader.onerror = error => reject(error);
           });
-        } else {
-          const url = fileOrUrl as string;
+        } catch (e) {
           try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Network response was not ok');
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+            const response = await fetch(proxyUrl);
+            if (!response.ok) throw new Error('Proxy network response was not ok');
             const blob = await response.blob();
             mimeType = blob.type || 'image/jpeg';
             base64 = await new Promise((resolve, reject) => {
@@ -326,22 +317,8 @@ export const AdminPanel = () => {
               reader.onload = () => resolve((reader.result as string).split(',')[1]);
               reader.onerror = error => reject(error);
             });
-          } catch (e) {
-            try {
-              const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-              const response = await fetch(proxyUrl);
-              if (!response.ok) throw new Error('Proxy network response was not ok');
-              const blob = await response.blob();
-              mimeType = blob.type || 'image/jpeg';
-              base64 = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(blob);
-                reader.onload = () => resolve((reader.result as string).split(',')[1]);
-                reader.onerror = error => reject(error);
-              });
-            } catch (proxyErr) {
-              console.warn('Image load failed. CORS policy might be blocking the image URL. Falling back to URL analysis.');
-            }
+          } catch (proxyErr) {
+            console.warn('Image load failed. CORS policy might be blocking the image URL. Falling back to URL analysis.');
           }
         }
       }
@@ -365,12 +342,11 @@ export const AdminPanel = () => {
         ];
       } else {
         // Fallback: Just use the URL text to guess
-        const urlToAnalyze = source === 'file' ? (fileOrUrl as File).name : (fileOrUrl as string);
         contents = [
           {
             role: 'user',
             parts: [
-              { text: fallbackInstruction.replace('{URL_PLACEHOLDER}', urlToAnalyze) }
+              { text: fallbackInstruction.replace('{URL_PLACEHOLDER}', url) }
             ]
           }
         ];
@@ -412,24 +388,6 @@ export const AdminPanel = () => {
     }
   };
 
-  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const files = Array.from(e.target.files);
-      setImageFiles(files);
-      
-      const firstFile = files[0];
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(firstFile);
-
-      if (isAutoGenerate) {
-        await generateAIDetails('file', firstFile);
-      }
-    }
-  };
-
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const url = e.target.value;
     setImageUrl(url);
@@ -438,7 +396,7 @@ export const AdminPanel = () => {
 
   const handleUrlBlur = async () => {
     if (imageUrl && isAutoGenerate) {
-      await generateAIDetails('url', imageUrl);
+      await generateAIDetails(imageUrl);
     }
   };
 
@@ -455,12 +413,7 @@ export const AdminPanel = () => {
     setError('');
     setSuccess(false);
 
-    if (uploadMethod === 'file' && imageFiles.length === 0) {
-      setError(`Please select a ${mediaType} to upload.`);
-      return;
-    }
-
-    if (uploadMethod === 'url' && !imageUrl) {
+    if (!imageUrl) {
       setError(`Please enter a ${mediaType} URL.`);
       return;
     }
@@ -473,107 +426,48 @@ export const AdminPanel = () => {
     setIsUploading(true);
 
     try {
-      if (uploadMethod === 'file' && imageFiles.length > 0) {
-        setUploadProgress({ current: 0, total: imageFiles.length });
-        
-        for (let i = 0; i < imageFiles.length; i++) {
-          const file = imageFiles[i];
-          let actualMediaType = mediaType;
-          if (file.type.startsWith('video/')) {
-            actualMediaType = 'video';
-          } else if (file.type.startsWith('image/')) {
-            actualMediaType = 'image';
-          }
-          
-          const storageRef = ref(storage, `${actualMediaType}s/${category}/${Date.now()}_${file.name}`);
-          const snapshot = await uploadBytes(storageRef, file);
-          const finalImageUrl = await getDownloadURL(snapshot.ref);
-          
-          const itemTitle = imageFiles.length > 1 ? `${title} ${i + 1}` : title;
-          
-          // Determine target collection and category field
-          let targetCollection = category;
-          let categoryField = category;
-
-          // If it's one of the Explore sub-categories, upload to Explore collection
-          const exploreSubCategories = [
-            "Fashion Model", "Fitness Model", "Glamour Model", "Traditional Model", "Casual Lifestyle",
-            "Product Ads", "Fashion Ads", "Fitness Ads", "Beauty Ads", "Food Ads", "Tech Ads", 
-            "Business Ads", "Social Ads", "Story Ads", "Global Style", "Luxury Ads", "Ecom Ads",
-            "Gaming", "Stock Market", "Personal Finance", "Tech", "Vlogging", "Cricket", "Movies", 
-            "Web Series", "Comedy", "Podcast", "Fitness", "Motivation", "Education", "Online Earning", 
-            "Business Ideas", "Automobile", "Cooking", "Real Estate", "Spirituality", "Fashion", 
-            "Beauty", "Parenting", "Coding", "Graphic Design", "Photography", "Travel", "News", 
-            "Science", "AI", "Government Schemes"
-          ];
-
-          if (exploreSubCategories.includes(category)) {
-            targetCollection = 'Explore';
-          } else if (category === 'Explore') {
-            categoryField = ''; // General explore
-          }
-
-          await addDoc(collection(db, targetCollection), {
-            title: itemTitle,
-            url: finalImageUrl,
-            type: actualMediaType,
-            prompt,
-            variablePrompt,
-            aiModels: selectedAIModels,
-            category: categoryField,
-            price,
-            likes: 0,
-            views: 0,
-            sales: 0,
-            createdAt: new Date().toISOString()
-          });
-          
-          setUploadProgress({ current: i + 1, total: imageFiles.length });
-        }
-      } else if (uploadMethod === 'url' && imageUrl) {
-        let actualMediaType = mediaType;
-        if (imageUrl.match(/\.(mp4|webm|ogg)$/i)) {
-          actualMediaType = 'video';
-        } else if (imageUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
-          actualMediaType = 'image';
-        }
-        
-        // Determine target collection and category field
-        let targetCollection = category;
-        let categoryField = category;
-
-        const exploreSubCategories = [
-          "Fashion Model", "Fitness Model", "Glamour Model", "Traditional Model", "Casual Lifestyle",
-          "Product Ads", "Fashion Ads", "Fitness Ads", "Beauty Ads", "Food Ads", "Tech Ads", 
-          "Business Ads", "Social Ads", "Story Ads", "Global Style", "Luxury Ads", "Ecom Ads",
-          "Gaming", "Stock Market", "Personal Finance", "Tech", "Vlogging", "Cricket", "Movies", 
-          "Web Series", "Comedy", "Podcast", "Fitness", "Motivation", "Education", "Online Earning", 
-          "Business Ideas", "Automobile", "Cooking", "Real Estate", "Spirituality", "Fashion", 
-          "Beauty", "Parenting", "Coding", "Graphic Design", "Photography", "Travel", "News", 
-          "Science", "AI", "Government Schemes"
-        ];
-
-        if (exploreSubCategories.includes(category)) {
-          targetCollection = 'Explore';
-        } else if (category === 'Explore') {
-          categoryField = '';
-        }
-
-        await addDoc(collection(db, targetCollection), {
-          title,
-          url: imageUrl,
-          type: actualMediaType,
-          prompt,
-          variablePrompt,
-          aiModels: selectedAIModels,
-          category: categoryField,
-          price,
-          likes: 0,
-          views: 0,
-          sales: 0,
-          createdAt: new Date().toISOString()
-        });
+      let actualMediaType = mediaType;
+      if (imageUrl.match(/\.(mp4|webm|ogg)$/i)) {
+        actualMediaType = 'video';
+      } else if (imageUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
+        actualMediaType = 'image';
       }
+      
+      // Determine target collection and category field
+      let targetCollection = category;
+      let categoryField = category;
+
+      const exploreSubCategories = [
+        "Fashion Model", "Fitness Model", "Glamour Model", "Traditional Model", "Casual Lifestyle",
+        "Product Ads", "Fashion Ads", "Fitness Ads", "Beauty Ads", "Food Ads", "Tech Ads", 
+        "Business Ads", "Social Ads", "Story Ads", "Global Style", "Luxury Ads", "Ecom Ads",
+        "Gaming", "Stock Market", "Personal Finance", "Tech", "Vlogging", "Cricket", "Movies", 
+        "Web Series", "Comedy", "Podcast", "Fitness", "Motivation", "Education", "Online Earning", 
+        "Business Ideas", "Automobile", "Cooking", "Real Estate", "Spirituality", "Fashion", 
+        "Beauty", "Parenting", "Coding", "Graphic Design", "Photography", "Travel", "News", 
+        "Science", "AI", "Government Schemes"
+      ];
+
+      if (exploreSubCategories.includes(category)) {
+        targetCollection = 'Explore';
+      } else if (category === 'Explore') {
+        categoryField = '';
+      }
+
+      await addDoc(collection(db, targetCollection), {
+        title,
+        url: imageUrl,
+        type: actualMediaType,
+        prompt,
+        variablePrompt,
+        aiModels: selectedAIModels,
+        category: categoryField,
+        price,
+        likes: 0,
+        views: 0,
+        sales: 0,
+        createdAt: new Date().toISOString()
+      });
 
       setSuccess(true);
       
@@ -583,10 +477,8 @@ export const AdminPanel = () => {
       setVariablePrompt('');
       setSelectedAIModels([]);
       setPrice(0);
-      setImageFiles([]);
       setImageUrl('');
       setImagePreview(null);
-      setUploadProgress(null);
       
       setTimeout(() => setSuccess(false), 5000);
     } catch (err: any) {
@@ -594,7 +486,6 @@ export const AdminPanel = () => {
       setError(err.message || `Failed to upload ${mediaType}.`);
     } finally {
       setIsUploading(false);
-      setUploadProgress(null);
     }
   };
 
@@ -671,167 +562,51 @@ export const AdminPanel = () => {
               </div>
 
               <div className="space-y-4">
-                {mediaType === 'video' ? (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-zinc-300">Video URL (YouTube, Vimeo, etc.)</label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
-                          <LinkIcon size={18} />
-                        </div>
-                        <input
-                          type="url"
-                          value={imageUrl}
-                          onChange={(e) => {
-                            handleUrlChange(e);
-                            setUploadMethod('url');
-                          }}
-                          onBlur={handleUrlBlur}
-                          placeholder="Paste video URL here..."
-                          className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                        />
-                      </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-zinc-300">
+                    {mediaType === 'video' ? 'Video URL (YouTube, Vimeo, etc.)' : 'Image URL'}
+                  </label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
+                      <LinkIcon size={18} />
                     </div>
-
-                    <div className="flex items-center gap-2 text-zinc-600 text-[10px] font-bold uppercase tracking-widest">
-                      <div className="h-px flex-1 bg-zinc-800"></div>
-                      <span>OR UPLOAD FILE</span>
-                      <div className="h-px flex-1 bg-zinc-800"></div>
-                    </div>
-
-                    <div 
-                      className="relative aspect-square md:aspect-[4/5] rounded-2xl border-2 border-dashed border-zinc-700 hover:border-indigo-500/50 bg-zinc-800/50 transition-colors overflow-hidden flex flex-col items-center justify-center cursor-pointer group"
-                      onClick={() => {
-                        setUploadMethod('file');
-                        document.getElementById('image-upload')?.click();
-                      }}
-                    >
-                      {imagePreview && uploadMethod === 'file' ? (
-                        <video src={imagePreview} controls className="w-full h-full object-contain bg-black" />
-                      ) : imagePreview && uploadMethod === 'url' ? (
-                        <div className="w-full h-full flex items-center justify-center bg-black/40">
-                          <div className="text-center p-4">
-                            <Video size={48} className="mx-auto mb-2 text-indigo-400" />
-                            <p className="text-xs text-zinc-300 line-clamp-2">{imageUrl}</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center text-zinc-500 group-hover:text-indigo-400 transition-colors">
-                          <Upload size={32} className="mb-3" />
-                          <span className="text-sm font-medium">Click to upload video(s)</span>
-                          <span className="text-xs mt-1 opacity-70">MP4, WebM up to 50MB</span>
-                        </div>
-                      )}
-                      <input 
-                        id="image-upload" 
-                        type="file" 
-                        multiple
-                        accept="video/*" 
-                        className="hidden" 
-                        onChange={(e) => {
-                          handleImageChange(e);
-                          setUploadMethod('file');
-                        }}
-                      />
-                    </div>
+                    <input
+                      type="url"
+                      value={imageUrl}
+                      onChange={handleUrlChange}
+                      onBlur={handleUrlBlur}
+                      placeholder={mediaType === 'video' ? "Paste video URL here..." : "https://example.com/image.jpg"}
+                      className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                    />
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="flex p-1 bg-zinc-800/50 rounded-xl border border-zinc-700/50">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setUploadMethod('file');
-                          setImagePreview(imageFiles.length > 0 ? URL.createObjectURL(imageFiles[0]) : null);
-                        }}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg transition-all ${
-                          uploadMethod === 'file' 
-                            ? 'bg-zinc-700 text-white shadow-sm' 
-                            : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50'
-                        }`}
-                      >
-                        <Upload size={16} />
-                        Upload File
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setUploadMethod('url');
-                          setImagePreview(imageUrl || null);
-                        }}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg transition-all ${
-                          uploadMethod === 'url' 
-                            ? 'bg-zinc-700 text-white shadow-sm' 
-                            : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50'
-                        }`}
-                      >
-                        <LinkIcon size={16} />
-                        Paste URL
-                      </button>
-                    </div>
+                </div>
 
-                    {uploadMethod === 'file' ? (
-                      <div 
-                        className="relative aspect-square md:aspect-[4/5] rounded-2xl border-2 border-dashed border-zinc-700 hover:border-indigo-500/50 bg-zinc-800/50 transition-colors overflow-hidden flex flex-col items-center justify-center cursor-pointer group"
-                        onClick={() => document.getElementById('image-upload')?.click()}
-                      >
-                        {imagePreview ? (
-                          <>
-                            <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                            {imageFiles.length > 1 && (
-                              <div className="absolute top-4 right-4 bg-indigo-600 text-white px-3 py-1 rounded-full text-sm font-medium shadow-lg">
-                                +{imageFiles.length - 1} more
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <div className="flex flex-col items-center text-zinc-500 group-hover:text-indigo-400 transition-colors">
-                            <Upload size={32} className="mb-3" />
-                            <span className="text-sm font-medium">Click to upload image(s)</span>
-                            <span className="text-xs mt-1 opacity-70">PNG, JPG up to 10MB</span>
-                          </div>
-                        )}
-                        <input 
-                          id="image-upload" 
-                          type="file" 
-                          multiple
-                          accept="image/*" 
-                          className="hidden" 
-                          onChange={handleImageChange}
-                        />
+                <div className="relative aspect-square md:aspect-[4/5] rounded-2xl border border-zinc-700 overflow-hidden bg-zinc-800/50 flex flex-col items-center justify-center">
+                  {imagePreview ? (
+                    mediaType === 'video' ? (
+                      <div className="w-full h-full flex items-center justify-center bg-black/40">
+                        <div className="text-center p-4">
+                          <Video size={48} className="mx-auto mb-2 text-indigo-400" />
+                          <p className="text-xs text-zinc-300 line-clamp-2">{imageUrl}</p>
+                        </div>
                       </div>
                     ) : (
-                      <div className="space-y-4">
-                        <input
-                          type="url"
-                          value={imageUrl}
-                          onChange={handleUrlChange}
-                          onBlur={handleUrlBlur}
-                          placeholder="https://example.com/image.jpg"
-                          className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        
-                        <div className="relative aspect-square md:aspect-[4/5] rounded-2xl border border-zinc-700 overflow-hidden bg-zinc-800/50 flex flex-col items-center justify-center">
-                          {imagePreview ? (
-                            <img 
-                              src={imagePreview} 
-                              alt="Preview" 
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x500?text=Invalid+Image+URL';
-                              }}
-                            />
-                          ) : (
-                            <div className="flex flex-col items-center text-zinc-600">
-                              <ImageIcon size={32} className="mb-3 opacity-50" />
-                              <span className="text-sm font-medium">Image preview will appear here</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                      <img 
+                        src={imagePreview} 
+                        alt="Preview" 
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x500?text=Invalid+Image+URL';
+                        }}
+                      />
+                    )
+                  ) : (
+                    <div className="flex flex-col items-center text-zinc-600">
+                      {mediaType === 'video' ? <Video size={32} className="mb-3 opacity-50" /> : <ImageIcon size={32} className="mb-3 opacity-50" />}
+                      <span className="text-sm font-medium">{mediaType === 'video' ? 'Video' : 'Image'} preview will appear here</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1057,12 +832,12 @@ export const AdminPanel = () => {
               {isUploading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  {uploadProgress ? `Uploading ${uploadProgress.current} of ${uploadProgress.total}...` : 'Uploading...'}
+                  Processing...
                 </>
               ) : (
                 <>
-                  <Upload size={18} />
-                  Upload to System
+                  <CheckCircle size={18} />
+                  Add to System
                 </>
               )}
             </button>
