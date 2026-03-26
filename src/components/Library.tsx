@@ -3,10 +3,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ImageItem } from '../constants';
 import { db, auth } from '../lib/firebase';
 import { collection, query, getDocs, orderBy } from 'firebase/firestore';
-import { Heart, Eye, Library as LibraryIcon } from 'lucide-react';
+import { Heart, Eye, Library as LibraryIcon, Sparkles } from 'lucide-react';
 import { ImageModal } from './ImageModal';
 import { handleFirestoreError, OperationType } from '../lib/errorHandling';
 import { ProtectedImage } from './ProtectedImage';
+import { AI_WEBSITE_LOGOS } from '../constants';
 
 export const Library = () => {
   const [purchasedImages, setPurchasedImages] = useState<ImageItem[]>([]);
@@ -96,23 +97,49 @@ export const Library = () => {
                 <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors" />
               </div>
               
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-                <div className="flex items-center justify-between text-white">
-                  <span className="font-medium truncate mr-2">{image.title}</span>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="flex items-center gap-1 text-sm bg-black/40 backdrop-blur-md px-2 py-1 rounded-full">
-                      <Eye size={14} />
-                      <span>{image.views?.toLocaleString()}</span>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-4">
+                {/* Top: AI Model Badge */}
+                <div>
+                  {image.aiModels && image.aiModels.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded-full overflow-hidden bg-white/10 backdrop-blur-md flex items-center justify-center p-0.5 border border-white/20">
+                        {AI_WEBSITE_LOGOS[image.aiModels[0]] ? (
+                          <img 
+                            src={AI_WEBSITE_LOGOS[image.aiModels[0]]} 
+                            alt={image.aiModels[0]} 
+                            className="w-full h-full object-contain"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <Sparkles size={10} className="text-indigo-400" />
+                        )}
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/90 drop-shadow-md bg-black/40 px-2 py-0.5 rounded-md backdrop-blur-sm border border-white/5">
+                        {image.aiModels[0]}
+                      </span>
                     </div>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                      }}
-                      className="flex items-center gap-1 text-sm bg-black/40 backdrop-blur-md px-2 py-1 rounded-full hover:text-pink-500 transition-colors"
-                    >
-                      <Heart size={14} />
-                      <span>{image.likes?.toLocaleString()}</span>
-                    </button>
+                  )}
+                </div>
+
+                {/* Bottom: Title and Stats */}
+                <div className="flex flex-col gap-1 text-white">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium truncate mr-2 text-sm">{image.title}</span>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="flex items-center gap-1 text-sm bg-black/40 backdrop-blur-md px-2 py-1 rounded-full">
+                        <Eye size={14} />
+                        <span>{image.views?.toLocaleString()}</span>
+                      </div>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                        className="flex items-center gap-1 text-sm bg-black/40 backdrop-blur-md px-2 py-1 rounded-full hover:text-pink-500 transition-colors"
+                      >
+                        <Heart size={14} />
+                        <span>{image.likes?.toLocaleString()}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

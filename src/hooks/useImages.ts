@@ -144,6 +144,7 @@ export const useImages = (category: string) => {
                 aspectRatio: data.aspectRatio || 'square',
                 prompt: data.prompt,
                 variablePrompt: data.variablePrompt,
+                aiModels: data.aiModels || [],
                 likes: data.likes || 0,
                 views: data.views || 0,
                 sales: data.sales || 0,
