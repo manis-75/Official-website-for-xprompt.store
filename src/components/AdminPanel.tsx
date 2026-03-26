@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Image as ImageIcon, CheckCircle, AlertCircle, Link as LinkIcon, Sparkles, Video } from 'lucide-react';
+import { Upload, Image as ImageIcon, CheckCircle, AlertCircle, Link as LinkIcon, Sparkles, Video, ChevronDown, X } from 'lucide-react';
 import { db, storage } from '../lib/firebase';
 import { collection, addDoc, getDocs, updateDoc, doc, getDoc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -149,6 +149,8 @@ export const AdminPanel = () => {
   const [prompt, setPrompt] = useState('');
   const [variablePrompt, setVariablePrompt] = useState('');
   const [selectedAIModels, setSelectedAIModels] = useState<string[]>([]);
+  const [modelSearch, setModelSearch] = useState('');
+  const [showModelList, setShowModelList] = useState(false);
   const [price, setPrice] = useState<number>(0);
   
   const [uploadMethod, setUploadMethod] = useState<'file' | 'url'>('file');
@@ -639,36 +641,6 @@ export const AdminPanel = () => {
             {/* Left Column - Image Upload */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <label className="block text-sm font-medium text-zinc-300">Media Type</label>
-              </div>
-              <div className="flex p-1 bg-zinc-800/50 rounded-xl border border-zinc-700/50 mb-4">
-                <button
-                  type="button"
-                  onClick={() => setMediaType('image')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg transition-all ${
-                    mediaType === 'image' 
-                      ? 'bg-zinc-700 text-white shadow-sm' 
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50'
-                  }`}
-                >
-                  <ImageIcon size={16} />
-                  Image
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMediaType('video')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg transition-all ${
-                    mediaType === 'video' 
-                      ? 'bg-zinc-700 text-white shadow-sm' 
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/50'
-                  }`}
-                >
-                  <Video size={16} />
-                  Video
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between">
                 <label className="block text-sm font-medium text-zinc-300">{mediaType === 'image' ? 'Image' : 'Video'} Source</label>
               </div>
 
@@ -869,30 +841,100 @@ export const AdminPanel = () => {
                 />
               </div>
 
-              <div className="space-y-3">
-                <label className="block text-sm font-medium text-zinc-300">
-                  {mediaType === 'image' ? 'AI Models / Websites Used' : 'Video Editing / Generation Tools'}
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-3 bg-zinc-800/50 border border-zinc-700/50 rounded-xl custom-scrollbar">
-                  {(mediaType === 'image' ? IMAGE_AI_WEBSITES : VIDEO_AI_WEBSITES).map(model => (
-                    <button
-                      key={model}
-                      type="button"
-                      onClick={() => toggleAIModel(model)}
-                      className={`px-3 py-2 text-xs font-medium rounded-lg border transition-all text-left flex items-center justify-between gap-2 ${
-                        selectedAIModels.includes(model)
-                          ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-400'
-                          : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600'
-                      }`}
-                    >
-                      <span className="truncate">{model}</span>
-                      {selectedAIModels.includes(model) && <CheckCircle size={12} className="shrink-0" />}
-                    </button>
-                  ))}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-zinc-300 italic">What kind of content does your prompt generate?</label>
+                <div className="relative">
+                  <select
+                    value={mediaType}
+                    onChange={(e) => setMediaType(e.target.value as 'image' | 'video')}
+                    className="w-full bg-[#2A2B3D] border border-zinc-700/50 text-white rounded-xl px-4 py-3 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="image">Images</option>
+                    <option value="video">Videos</option>
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={18} />
                 </div>
-                <p className="text-[10px] text-zinc-500 italic">
-                  Select multiple {mediaType === 'image' ? 'AI tools' : 'video tools'} used to create this content.
-                </p>
+              </div>
+
+              <div className="space-y-4 pt-2">
+                <h3 className="text-xl font-bold text-white">Model</h3>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-zinc-300 italic">Select the AI model your prompt uses</label>
+                  <div className="relative">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={modelSearch}
+                        onChange={(e) => {
+                          setModelSearch(e.target.value);
+                          setShowModelList(true);
+                        }}
+                        onFocus={() => setShowModelList(true)}
+                        placeholder="Select Prompt Type"
+                        className="w-full bg-[#2A2B3D] border border-zinc-700/50 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <ChevronDown 
+                        className={`absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none transition-transform ${showModelList ? 'rotate-180' : ''}`} 
+                        size={18} 
+                      />
+                    </div>
+
+                    {showModelList && (
+                      <div className="absolute z-20 w-full mt-2 bg-[#1A1B2D] border border-zinc-700/50 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto custom-scrollbar">
+                        {(mediaType === 'image' ? IMAGE_AI_WEBSITES : VIDEO_AI_WEBSITES)
+                          .filter(model => model.toLowerCase().includes(modelSearch.toLowerCase()))
+                          .map(model => (
+                            <button
+                              key={model}
+                              type="button"
+                              onClick={() => {
+                                toggleAIModel(model);
+                                setModelSearch('');
+                                setShowModelList(false);
+                              }}
+                              className={`w-full text-left px-4 py-3 text-sm transition-colors hover:bg-indigo-600/20 flex items-center justify-between ${
+                                selectedAIModels.includes(model) ? 'text-indigo-400 bg-indigo-600/10' : 'text-zinc-300'
+                              }`}
+                            >
+                              {model}
+                              {selectedAIModels.includes(model) && <CheckCircle size={14} />}
+                            </button>
+                          ))}
+                        {(mediaType === 'image' ? IMAGE_AI_WEBSITES : VIDEO_AI_WEBSITES).filter(model => model.toLowerCase().includes(modelSearch.toLowerCase())).length === 0 && (
+                          <div className="px-4 py-3 text-sm text-zinc-500 italic">No models found</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Click outside to close */}
+                {showModelList && (
+                  <div 
+                    className="fixed inset-0 z-10" 
+                    onClick={() => setShowModelList(false)}
+                  />
+                )}
+
+                {selectedAIModels.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {selectedAIModels.map(model => (
+                      <span 
+                        key={model} 
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 rounded-lg text-xs font-medium group"
+                      >
+                        {model}
+                        <button 
+                          type="button"
+                          onClick={() => toggleAIModel(model)}
+                          className="hover:text-white transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">

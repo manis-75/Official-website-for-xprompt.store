@@ -16,36 +16,30 @@ export interface ImageItem {
 }
 
 export const IMAGE_AI_WEBSITES = [
-  "Midjourney",
-  "DALL-E 3",
-  "Stable Diffusion",
-  "Adobe Firefly",
-  "Leonardo.ai",
-  "Playground AI",
-  "SeaArt.ai",
-  "Civitai",
+  "ChatGPT Image",
+  "FLUX",
+  "Gemini Image",
+  "Grok Image",
+  "Hunyuan",
   "Ideogram",
-  "Flux.1",
-  "Canva AI",
-  "Bing Image Creator",
-  "Krea.ai",
-  "Recraft.ai"
+  "Imagen",
+  "Leonardo Ai",
+  "Midjourney",
+  "Qwen Image",
+  "Recraft",
+  "Seedream",
+  "Stable Diffusion"
 ];
 
 export const VIDEO_AI_WEBSITES = [
-  "Pika Labs",
-  "Luma Dream Machine",
-  "Runway Gen-2",
-  "Sora (OpenAI)",
-  "HeyGen",
-  "Synthesia",
-  "Kaiber.ai",
-  "InVideo",
-  "CapCut AI",
-  "Adobe Premiere AI",
-  "DaVinci Resolve AI",
-  "Topaz Video AI",
-  "Wonder Dynamics"
+  "Grok Video",
+  "Hailuo AI",
+  "KLING AI",
+  "Midjourney Video",
+  "Seedance",
+  "Sora",
+  "Veo",
+  "Wan"
 ];
 
 export const GENERATOR_SYSTEMS = [
