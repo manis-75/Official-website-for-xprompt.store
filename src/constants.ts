@@ -12,7 +12,41 @@ export interface ImageItem {
   price?: number;
   collection?: string;
   category?: string;
+  aiModels?: string[];
 }
+
+export const IMAGE_AI_WEBSITES = [
+  "Midjourney",
+  "DALL-E 3",
+  "Stable Diffusion",
+  "Adobe Firefly",
+  "Leonardo.ai",
+  "Playground AI",
+  "SeaArt.ai",
+  "Civitai",
+  "Ideogram",
+  "Flux.1",
+  "Canva AI",
+  "Bing Image Creator",
+  "Krea.ai",
+  "Recraft.ai"
+];
+
+export const VIDEO_AI_WEBSITES = [
+  "Pika Labs",
+  "Luma Dream Machine",
+  "Runway Gen-2",
+  "Sora (OpenAI)",
+  "HeyGen",
+  "Synthesia",
+  "Kaiber.ai",
+  "InVideo",
+  "CapCut AI",
+  "Adobe Premiere AI",
+  "DaVinci Resolve AI",
+  "Topaz Video AI",
+  "Wonder Dynamics"
+];
 
 export const GENERATOR_SYSTEMS = [
   {

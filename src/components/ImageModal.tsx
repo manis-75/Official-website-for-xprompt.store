@@ -329,6 +329,22 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
             </div>
           </div>
 
+          {image.aiModels && image.aiModels.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-white uppercase tracking-wider">AI Models / Websites Used</h3>
+              <div className="flex flex-wrap gap-2">
+                {image.aiModels.map(model => (
+                  <span 
+                    key={model} 
+                    className="px-3 py-1 bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 rounded-full text-xs font-medium"
+                  >
+                    {model}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="w-full h-px bg-white/10 my-2" />
 
           {/* Prompts */}

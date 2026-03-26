@@ -4,6 +4,7 @@ import { db, storage } from '../lib/firebase';
 import { collection, addDoc, getDocs, updateDoc, doc, getDoc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { GoogleGenAI, Type } from "@google/genai";
+import { IMAGE_AI_WEBSITES, VIDEO_AI_WEBSITES } from '../constants';
 
 const CATEGORIES = [
   { id: 'Explore', label: 'Explore Gallery' },
@@ -147,6 +148,7 @@ export const AdminPanel = () => {
   const [title, setTitle] = useState('');
   const [prompt, setPrompt] = useState('');
   const [variablePrompt, setVariablePrompt] = useState('');
+  const [selectedAIModels, setSelectedAIModels] = useState<string[]>([]);
   const [price, setPrice] = useState<number>(0);
   
   const [uploadMethod, setUploadMethod] = useState<'file' | 'url'>('file');
@@ -162,6 +164,10 @@ export const AdminPanel = () => {
   
   const [isAutoGenerate, setIsAutoGenerate] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  useEffect(() => {
+    setSelectedAIModels([]);
+  }, [mediaType]);
 
   useEffect(() => {
     // No longer fetching payment requests
@@ -434,6 +440,14 @@ export const AdminPanel = () => {
     }
   };
 
+  const toggleAIModel = (model: string) => {
+    setSelectedAIModels(prev => 
+      prev.includes(model) 
+        ? prev.filter(m => m !== model) 
+        : [...prev, model]
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -503,6 +517,7 @@ export const AdminPanel = () => {
             type: actualMediaType,
             prompt,
             variablePrompt,
+            aiModels: selectedAIModels,
             category: categoryField,
             price,
             likes: 0,
@@ -548,6 +563,7 @@ export const AdminPanel = () => {
           type: actualMediaType,
           prompt,
           variablePrompt,
+          aiModels: selectedAIModels,
           category: categoryField,
           price,
           likes: 0,
@@ -563,6 +579,7 @@ export const AdminPanel = () => {
       setTitle('');
       setPrompt('');
       setVariablePrompt('');
+      setSelectedAIModels([]);
       setPrice(0);
       setImageFiles([]);
       setImageUrl('');
@@ -850,6 +867,32 @@ export const AdminPanel = () => {
                   rows={3}
                   className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                 />
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-zinc-300">
+                  {mediaType === 'image' ? 'AI Models / Websites Used' : 'Video Editing / Generation Tools'}
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-3 bg-zinc-800/50 border border-zinc-700/50 rounded-xl custom-scrollbar">
+                  {(mediaType === 'image' ? IMAGE_AI_WEBSITES : VIDEO_AI_WEBSITES).map(model => (
+                    <button
+                      key={model}
+                      type="button"
+                      onClick={() => toggleAIModel(model)}
+                      className={`px-3 py-2 text-xs font-medium rounded-lg border transition-all text-left flex items-center justify-between gap-2 ${
+                        selectedAIModels.includes(model)
+                          ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-400'
+                          : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600'
+                      }`}
+                    >
+                      <span className="truncate">{model}</span>
+                      {selectedAIModels.includes(model) && <CheckCircle size={12} className="shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-zinc-500 italic">
+                  Select multiple {mediaType === 'image' ? 'AI tools' : 'video tools'} used to create this content.
+                </p>
               </div>
 
               <div className="space-y-2">
