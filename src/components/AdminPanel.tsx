@@ -3,7 +3,7 @@ import { Image as ImageIcon, CheckCircle, AlertCircle, Link as LinkIcon, Sparkle
 import { db } from '../lib/firebase';
 import { collection, addDoc, getDocs, updateDoc, doc, getDoc, setDoc } from 'firebase/firestore';
 import { GoogleGenAI, Type } from "@google/genai";
-import { IMAGE_AI_WEBSITES, VIDEO_AI_WEBSITES } from '../constants';
+import { IMAGE_AI_WEBSITES, VIDEO_AI_WEBSITES, AI_MODEL_VERSIONS } from '../constants';
 
 const CATEGORIES = [
   { id: 'Explore', label: 'Explore Gallery' },
@@ -148,6 +148,8 @@ export const AdminPanel = () => {
   const [prompt, setPrompt] = useState('');
   const [variablePrompt, setVariablePrompt] = useState('');
   const [selectedAIModels, setSelectedAIModels] = useState<string[]>([]);
+  const [selectedVersion, setSelectedVersion] = useState('');
+  const [seedNumber, setSeedNumber] = useState('');
   const [modelSearch, setModelSearch] = useState('');
   const [showModelList, setShowModelList] = useState(false);
   const [price, setPrice] = useState<number>(0);
@@ -353,7 +355,7 @@ export const AdminPanel = () => {
       }
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3-flash-preview",
         contents: contents,
         config: {
           responseMimeType: "application/json",
@@ -401,11 +403,22 @@ export const AdminPanel = () => {
   };
 
   const toggleAIModel = (model: string) => {
-    setSelectedAIModels(prev => 
-      prev.includes(model) 
+    setSelectedAIModels(prev => {
+      const newModels = prev.includes(model) 
         ? prev.filter(m => m !== model) 
-        : [...prev, model]
-    );
+        : [...prev, model];
+      
+      // Auto-set price based on selection
+      if (newModels.length === 0) {
+        setPrice(0);
+      } else if (newModels.includes('Gemini')) {
+        setPrice(0);
+      } else {
+        setPrice(1); // $1 for other models
+      }
+      
+      return newModels;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -433,6 +446,15 @@ export const AdminPanel = () => {
         actualMediaType = 'image';
       }
       
+      // Append version and seed to prompt if they exist
+      let finalPrompt = prompt;
+      if (selectedVersion) {
+        finalPrompt += ` --v ${selectedVersion}`;
+      }
+      if (seedNumber) {
+        finalPrompt += ` --seed ${seedNumber}`;
+      }
+      
       // Determine target collection and category field
       let targetCollection = category;
       let categoryField = category;
@@ -458,9 +480,11 @@ export const AdminPanel = () => {
         title,
         url: imageUrl,
         type: actualMediaType,
-        prompt,
+        prompt: finalPrompt,
         variablePrompt,
         aiModels: selectedAIModels,
+        version: selectedVersion,
+        seed: seedNumber,
         category: categoryField,
         price,
         likes: 0,
@@ -476,6 +500,8 @@ export const AdminPanel = () => {
       setPrompt('');
       setVariablePrompt('');
       setSelectedAIModels([]);
+      setSelectedVersion('');
+      setSeedNumber('');
       setPrice(0);
       setImageUrl('');
       setImagePreview(null);
@@ -647,19 +673,7 @@ export const AdminPanel = () => {
                   onChange={(e) => {
                     const newCategory = e.target.value;
                     setCategory(newCategory);
-                    
-                    // Auto-set price based on category
-                    if (newCategory.startsWith('AI Influencer')) {
-                      setPrice(59);
-                    } else if (newCategory.startsWith('Ad Templates')) {
-                      setPrice(49);
-                    } else if (newCategory.startsWith('Logo Prompt') || newCategory.startsWith('Icon Prompt')) {
-                      setPrice(39);
-                    } else if (newCategory.startsWith('Trending') || newCategory.startsWith('All Category')) {
-                      setPrice(29);
-                    } else {
-                      setPrice(0);
-                    }
+                    // Price is now determined by AI Model selection
                   }}
                   className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
@@ -671,35 +685,59 @@ export const AdminPanel = () => {
 
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-zinc-300">Title</label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g., Cyberpunk Cityscape"
-                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g., Cyberpunk Cityscape"
+                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  {isGenerating && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 text-indigo-400 text-xs font-medium bg-zinc-800 px-2">
+                      <div className="w-3 h-3 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                      Analyzing...
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-zinc-300">Prompt</label>
-                <textarea
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder={`The exact prompt used to generate this ${mediaType}...`}
-                  rows={4}
-                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                />
+                <div className="relative">
+                  <textarea
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder={`The exact prompt used to generate this ${mediaType}...`}
+                    rows={4}
+                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  />
+                  {isGenerating && (
+                    <div className="absolute right-3 top-3 flex items-center gap-2 text-indigo-400 text-xs font-medium bg-zinc-800 px-2">
+                      <div className="w-3 h-3 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                      Generating...
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-zinc-300">Variable Prompt</label>
-                <textarea
-                  value={variablePrompt}
-                  onChange={(e) => setVariablePrompt(e.target.value)}
-                  placeholder="[Subject: ...], [Style: ...]"
-                  rows={3}
-                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                />
+                <div className="relative">
+                  <textarea
+                    value={variablePrompt}
+                    onChange={(e) => setVariablePrompt(e.target.value)}
+                    placeholder="[Subject: ...], [Style: ...]"
+                    rows={3}
+                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  />
+                  {isGenerating && (
+                    <div className="absolute right-3 top-3 flex items-center gap-2 text-indigo-400 text-xs font-medium bg-zinc-800 px-2">
+                      <div className="w-3 h-3 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                      Generating...
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-4 pt-2">
@@ -789,37 +827,61 @@ export const AdminPanel = () => {
                 )}
 
                 {selectedAIModels.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {selectedAIModels.map(model => (
-                      <span 
-                        key={model} 
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 rounded-lg text-xs font-medium group"
-                      >
-                        {model}
-                        <button 
-                          type="button"
-                          onClick={() => toggleAIModel(model)}
-                          className="hover:text-white transition-colors"
+                  <div className="space-y-4 mt-4">
+                    <div className="flex flex-wrap gap-2">
+                      {selectedAIModels.map(model => (
+                        <span 
+                          key={model} 
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 rounded-lg text-xs font-medium group"
                         >
-                          <X size={14} />
-                        </button>
-                      </span>
-                    ))}
+                          {model}
+                          <button 
+                            type="button"
+                            onClick={() => toggleAIModel(model)}
+                            className="hover:text-white transition-colors"
+                          >
+                            <X size={14} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Version Selection */}
+                    {selectedAIModels.some(m => AI_MODEL_VERSIONS[m]) && (
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-zinc-300">Model Version</label>
+                        <select
+                          value={selectedVersion}
+                          onChange={(e) => setSelectedVersion(e.target.value)}
+                          className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          <option value="">Select Version</option>
+                          {selectedAIModels
+                            .filter(m => AI_MODEL_VERSIONS[m])
+                            .flatMap(m => AI_MODEL_VERSIONS[m])
+                            .map(v => (
+                              <option key={v} value={v}>{v}</option>
+                            ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Seed Number */}
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-zinc-300">Seed Number</label>
+                      <input
+                        type="text"
+                        value={seedNumber}
+                        onChange={(e) => setSeedNumber(e.target.value)}
+                        placeholder="e.g., 123456789"
+                        className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
                   </div>
                 )}
               </div>
 
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-zinc-300">Price (₹)</label>
-                <input
-                  type="number"
-                  value={price}
-                  onChange={(e) => setPrice(Number(e.target.value))}
-                  placeholder="0 for free"
-                  min="0"
-                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
+              {/* Price is now auto-determined by AI Model selection */}
             </div>
           </div>
 

@@ -13,6 +13,8 @@ export interface ImageItem {
   collection?: string;
   category?: string;
   aiModels?: string[];
+  version?: string;
+  seed?: string;
 }
 
 export const IMAGE_AI_WEBSITES = [
@@ -62,6 +64,18 @@ export const AI_WEBSITE_LOGOS: Record<string, string> = {
   "Sora": "https://api.dicebear.com/7.x/initials/svg?seed=SR&backgroundColor=000000",
   "Veo": "https://api.dicebear.com/7.x/initials/svg?seed=VO&backgroundColor=000000",
   "Wan": "https://api.dicebear.com/7.x/initials/svg?seed=WN&backgroundColor=000000"
+};
+
+export const AI_MODEL_VERSIONS: Record<string, string[]> = {
+  "Midjourney": ["v4", "v5", "v5.1", "v5.2", "v6", "v6.1"],
+  "Stable Diffusion": ["1.5", "2.1", "XL", "3.0", "3.5"],
+  "FLUX": ["Pro", "Dev", "Schnell"],
+  "ChatGPT": ["DALL-E 2", "DALL-E 3"],
+  "Leonardo Ai": ["Kino XL", "Vision XL", "AlbedoBase XL"],
+  "Ideogram": ["v1.0", "v2.0"],
+  "KLING AI": ["v1.0", "v1.5"],
+  "Hailuo AI": ["v1.0"],
+  "Veo": ["v1.0"]
 };
 
 export const GENERATOR_SYSTEMS = [

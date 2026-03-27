@@ -25,15 +25,9 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
 
   if (!image) return null;
 
-  let price = 0;
+  let price = image.price ?? 0;
   if (systemType === 'Library') price = 0;
-  else if (systemType === 'Model') price = 6;
-  else if (systemType === 'Ad') price = 7;
-  else if (systemType === 'Logo') price = 5;
-  else if (systemType === 'Thumbnail') price = 10;
-  else if (systemType === 'Explore' && image.type === 'video') price = 15;
-  else if (systemType === 'Explore') price = 0;
-
+  
   useEffect(() => {
     const checkPurchase = async () => {
       if (auth.currentUser && price > 0 && systemType !== 'Library') {
@@ -300,7 +294,7 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
             <div className="flex items-start justify-between mb-2">
               <h2 className="text-xl font-bold text-white">{image.title}</h2>
               <div className="bg-indigo-600/20 text-indigo-400 px-3 py-1 rounded-full text-sm font-bold border border-indigo-500/30 shrink-0 ml-4">
-                {price > 0 ? `₹${price}` : 'Free'}
+                {(!image.aiModels || image.aiModels.length === 0 || image.aiModels.includes('Gemini')) ? 'Free' : '$1'}
               </div>
             </div>
             
@@ -414,6 +408,27 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
                         {image.variablePrompt}
                       </p>
                     </div>
+                  </div>
+                )}
+
+                {(image.version || image.seed) && (
+                  <div className="grid grid-cols-2 gap-4">
+                    {image.version && (
+                      <div>
+                        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Version</h3>
+                        <div className="bg-zinc-800/50 px-3 py-2 rounded-lg border border-white/5 text-zinc-300 text-sm">
+                          {image.version}
+                        </div>
+                      </div>
+                    )}
+                    {image.seed && (
+                      <div>
+                        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Seed</h3>
+                        <div className="bg-zinc-800/50 px-3 py-2 rounded-lg border border-white/5 text-zinc-300 text-sm">
+                          {image.seed}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </>
