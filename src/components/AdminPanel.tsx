@@ -7,8 +7,65 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Trash2, Database, Search, RefreshCw } from 'lucide-react';
 import { IMAGE_AI_WEBSITES, VIDEO_AI_WEBSITES, AI_MODEL_VERSIONS } from '../constants';
 
+const EXPLORE_SUB_CATEGORIES = [
+  "Fashion Model", "Fitness Model", "Glamour Model", "Traditional Model", "Casual Lifestyle",
+  "Product Ads", "Fashion Ads", "Fitness Ads", "Beauty Ads", "Food Ads", "Tech Ads", 
+  "Business Ads", "Social Ads", "Story Ads", "Global Style", "Luxury Ads", "Ecom Ads",
+  "Gaming", "Stock Market", "Personal Finance", "Tech", "Vlogging", "Cricket", "Movies", 
+  "Web Series", "Comedy", "Podcast", "Fitness", "Motivation", "Education", "Online Earning", 
+  "Business Ideas", "Automobile", "Cooking", "Real Estate", "Spirituality", "Fashion", 
+  "Beauty", "Parenting", "Coding", "Graphic Design", "Photography", "Travel", "News", 
+  "Science", "AI", "Government Schemes"
+];
+
+const MAIN_CATEGORY_MAPPING: Record<string, string[]> = {
+  'Model': [
+    'Model', 'AI Influencer',
+    'AI Influencer: Fashion Model', 'AI Influencer: Fitness Model',
+    'AI Influencer: Glamour Model', 'AI Influencer: Traditional Model', 'AI Influencer: Casual Lifestyle'
+  ],
+  'Ad Studio': [
+    'AddImage', 'Ad Studio',
+    'Ad Templates: Product Ads', 'Ad Templates: Fashion Ads',
+    'Ad Templates: Fitness Ads', 'Ad Templates: Beauty Ads', 'Ad Templates: Food Ads',
+    'Ad Templates: Tech Ads', 'Ad Templates: Business Ads', 'Ad Templates: Social Ads',
+    'Ad Templates: Story Ads', 'Ad Templates: Global Style', 'Ad Templates: Luxury Ads',
+    'Ad Templates: Ecom Ads'
+  ],
+  'Thumbnail': [
+    'YoutubeThumbnail', 'Thumbnail',
+    'Trending: Gaming', 'Trending: Stock Market', 'Trending: Personal Finance',
+    'Trending: Tech', 'Trending: Vlogging', 'Trending: Cricket', 'Trending: Movies',
+    'Trending: Web Series', 'Trending: Comedy', 'Trending: Podcast', 'Trending: Fitness',
+    'Trending: Motivation', 'Trending: Education', 'Trending: Online Earning',
+    'Trending: Business Ideas', 'Trending: Automobile', 'Trending: Cooking',
+    'Trending: Real Estate', 'Trending: Spirituality', 'Trending: Fashion',
+    'Trending: Beauty', 'Trending: Parenting', 'Trending: Coding',
+    'Trending: Graphic Design', 'Trending: Photography', 'Trending: Travel',
+    'Trending: News', 'Trending: Science', 'Trending: AI', 'Trending: Government Schemes',
+    'All Category: Business Ideas', 'All Category: Automobile', 'All Category: Cooking',
+    'All Category: Real Estate', 'All Category: Spirituality', 'All Category: Fashion',
+    'All Category: Beauty', 'All Category: Parenting', 'All Category: Coding',
+    'All Category: Graphic Design', 'All Category: Photography', 'All Category: Travel',
+    'All Category: Science', 'All Category: Government Schemes', 'All Category: Comedy'
+  ],
+  'Logo Image': [
+    'IconImage', 'Logo Image',
+    'Logo Prompt: 3D', 'Logo Prompt: Animal', 'Logo Prompt: Business & Startup',
+    'Logo Prompt: Cartoon', 'Logo Prompt: Cute', 'Logo Prompt: Food', 'Logo Prompt: Lettered',
+    'Logo Prompt: Hand-drawn', 'Logo Prompt: Minimalist', 'Logo Prompt: Modern',
+    'Logo Prompt: Painted', 'Logo Prompt: Styled',
+    'Icon Prompt: 3D', 'Icon Prompt: Animal', 'Icon Prompt: Clipart', 'Icon Prompt: Cute',
+    'Icon Prompt: Flat Graphic', 'Icon Prompt: Pixel Art', 'Icon Prompt: Styled', 'Icon Prompt: UI'
+  ]
+};
+
 const CATEGORIES = [
   { id: 'Explore', label: 'Explore Gallery' },
+  { id: 'Thumbnail', label: 'YouTube Thumbnail' },
+  { id: 'Model', label: 'Model' },
+  { id: 'Ad Studio', label: 'Ad Studio' },
+  { id: 'Logo Image', label: 'Logo Image' },
   // Explore Categories (Sub-categories)
   { id: 'Fashion Model', label: 'Fashion Model' },
   { id: 'Fitness Model', label: 'Fitness Model' },
@@ -140,6 +197,14 @@ const CATEGORIES = [
   { id: 'Icon Prompt: Pixel Art', label: 'Icon Prompt: Pixel Art' },
   { id: 'Icon Prompt: Styled', label: 'Icon Prompt: Styled' },
   { id: 'Icon Prompt: UI', label: 'Icon Prompt: UI' },
+  { id: 'Thumbnail', label: 'YouTube Thumbnail' },
+  { id: 'YoutubeThumbnail', label: 'YouTube Thumbnail (Legacy)' },
+  { id: 'Model', label: 'Model' },
+  { id: 'AI Influencer', label: 'AI Influencer' },
+  { id: 'AddImage', label: 'Ad Studio (AddImage)' },
+  { id: 'Ad Studio', label: 'Ad Studio' },
+  { id: 'IconImage', label: 'Icon Image' },
+  { id: 'Logo Image', label: 'Logo Image' },
 ];
 
 export const AdminPanel = () => {
@@ -192,30 +257,27 @@ export const AdminPanel = () => {
       });
 
       // 2. Fetch other collections counts
-      // Get all unique collection names from CATEGORIES that are not in Explore sub-categories
-      const exploreSubCategories = [
-        "Fashion Model", "Fitness Model", "Glamour Model", "Traditional Model", "Casual Lifestyle",
-        "Product Ads", "Fashion Ads", "Fitness Ads", "Beauty Ads", "Food Ads", "Tech Ads", 
-        "Business Ads", "Social Ads", "Story Ads", "Global Style", "Luxury Ads", "Ecom Ads",
-        "Gaming", "Stock Market", "Personal Finance", "Tech", "Vlogging", "Cricket", "Movies", 
-        "Web Series", "Comedy", "Podcast", "Fitness", "Motivation", "Education", "Online Earning", 
-        "Business Ideas", "Automobile", "Cooking", "Real Estate", "Spirituality", "Fashion", 
-        "Beauty", "Parenting", "Coding", "Graphic Design", "Photography", "Travel", "News", 
-        "Science", "AI", "Government Schemes"
-      ];
-
       const otherCollections = Array.from(new Set(CATEGORIES
         .map(c => c.id)
-        .filter(id => id !== 'Explore' && !exploreSubCategories.includes(id))
+        .filter(id => id !== 'Explore' && !EXPLORE_SUB_CATEGORIES.includes(id))
       ));
 
       for (const colId of otherCollections) {
         try {
-          const snap = await getDocs(collection(db, colId));
-          counts[colId] = snap.size;
-        } catch (e) {
-          // Collection might not exist yet
-        }
+          if (MAIN_CATEGORY_MAPPING[colId]) {
+            let total = 0;
+            for (const subCol of MAIN_CATEGORY_MAPPING[colId]) {
+              try {
+                const snap = await getDocs(collection(db, subCol));
+                total += snap.size;
+              } catch (e) {}
+            }
+            counts[colId] = total;
+          } else {
+            const snap = await getDocs(collection(db, colId));
+            counts[colId] = snap.size;
+          }
+        } catch (e) {}
       }
 
       setCategoryCounts(counts);
@@ -237,30 +299,27 @@ export const AdminPanel = () => {
       allItems = [...exploreSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), collection: 'Explore' }))];
 
       // 2. Fetch from other collections
-      const exploreSubCategories = [
-        "Fashion Model", "Fitness Model", "Glamour Model", "Traditional Model", "Casual Lifestyle",
-        "Product Ads", "Fashion Ads", "Fitness Ads", "Beauty Ads", "Food Ads", "Tech Ads", 
-        "Business Ads", "Social Ads", "Story Ads", "Global Style", "Luxury Ads", "Ecom Ads",
-        "Gaming", "Stock Market", "Personal Finance", "Tech", "Vlogging", "Cricket", "Movies", 
-        "Web Series", "Comedy", "Podcast", "Fitness", "Motivation", "Education", "Online Earning", 
-        "Business Ideas", "Automobile", "Cooking", "Real Estate", "Spirituality", "Fashion", 
-        "Beauty", "Parenting", "Coding", "Graphic Design", "Photography", "Travel", "News", 
-        "Science", "AI", "Government Schemes"
-      ];
-
       const otherCollections = Array.from(new Set(CATEGORIES
         .map(c => c.id)
-        .filter(id => id !== 'Explore' && !exploreSubCategories.includes(id))
+        .filter(id => id !== 'Explore' && !EXPLORE_SUB_CATEGORIES.includes(id))
       ));
 
       for (const colId of otherCollections) {
         try {
-          const snap = await getDocs(collection(db, colId));
-          const colItems = snap.docs.map(doc => ({ id: doc.id, ...doc.data(), collection: colId }));
-          allItems = [...allItems, ...colItems];
-        } catch (e) {
-          // Skip
-        }
+          if (MAIN_CATEGORY_MAPPING[colId]) {
+            for (const subCol of MAIN_CATEGORY_MAPPING[colId]) {
+              try {
+                const snap = await getDocs(collection(db, subCol));
+                const colItems = snap.docs.map(doc => ({ id: doc.id, ...doc.data(), collection: subCol }));
+                allItems = [...allItems, ...colItems];
+              } catch (e) {}
+            }
+          } else {
+            const snap = await getDocs(collection(db, colId));
+            const colItems = snap.docs.map(doc => ({ id: doc.id, ...doc.data(), collection: colId }));
+            allItems = [...allItems, ...colItems];
+          }
+        } catch (e) {}
       }
 
       // Sort by date descending
@@ -282,18 +341,17 @@ export const AdminPanel = () => {
     setSelectedDbCategory(catId);
     try {
       let items: any[] = [];
-      const exploreSubCategories = [
-        "Fashion Model", "Fitness Model", "Glamour Model", "Traditional Model", "Casual Lifestyle",
-        "Product Ads", "Fashion Ads", "Fitness Ads", "Beauty Ads", "Food Ads", "Tech Ads", 
-        "Business Ads", "Social Ads", "Story Ads", "Global Style", "Luxury Ads", "Ecom Ads",
-        "Gaming", "Stock Market", "Personal Finance", "Tech", "Vlogging", "Cricket", "Movies", 
-        "Web Series", "Comedy", "Podcast", "Fitness", "Motivation", "Education", "Online Earning", 
-        "Business Ideas", "Automobile", "Cooking", "Real Estate", "Spirituality", "Fashion", 
-        "Beauty", "Parenting", "Coding", "Graphic Design", "Photography", "Travel", "News", 
-        "Science", "AI", "Government Schemes"
-      ];
 
-      if (exploreSubCategories.includes(catId) || catId === 'Explore') {
+      if (MAIN_CATEGORY_MAPPING[catId]) {
+        const collectionsToFetch = MAIN_CATEGORY_MAPPING[catId];
+        const fetchPromises = collectionsToFetch.map(col => getDocs(collection(db, col)));
+        const snapshots = await Promise.all(fetchPromises);
+        snapshots.forEach((snap, idx) => {
+          const colName = collectionsToFetch[idx];
+          const colItems = snap.docs.map(doc => ({ id: doc.id, ...doc.data(), collection: colName }));
+          items = [...items, ...colItems];
+        });
+      } else if (EXPLORE_SUB_CATEGORIES.includes(catId) || catId === 'Explore') {
         const q = catId === 'Explore' 
           ? query(collection(db, 'Explore'), where('category', '==', ''))
           : query(collection(db, 'Explore'), where('category', '==', catId));
@@ -611,18 +669,7 @@ export const AdminPanel = () => {
       let targetCollection = category;
       let categoryField = category;
 
-      const exploreSubCategories = [
-        "Fashion Model", "Fitness Model", "Glamour Model", "Traditional Model", "Casual Lifestyle",
-        "Product Ads", "Fashion Ads", "Fitness Ads", "Beauty Ads", "Food Ads", "Tech Ads", 
-        "Business Ads", "Social Ads", "Story Ads", "Global Style", "Luxury Ads", "Ecom Ads",
-        "Gaming", "Stock Market", "Personal Finance", "Tech", "Vlogging", "Cricket", "Movies", 
-        "Web Series", "Comedy", "Podcast", "Fitness", "Motivation", "Education", "Online Earning", 
-        "Business Ideas", "Automobile", "Cooking", "Real Estate", "Spirituality", "Fashion", 
-        "Beauty", "Parenting", "Coding", "Graphic Design", "Photography", "Travel", "News", 
-        "Science", "AI", "Government Schemes"
-      ];
-
-      if (exploreSubCategories.includes(category)) {
+      if (EXPLORE_SUB_CATEGORIES.includes(category)) {
         targetCollection = 'Explore';
       } else if (category === 'Explore') {
         categoryField = '';
