@@ -161,6 +161,16 @@ export const Sidebar = ({ activeTab, onTabChange, isOpen, onToggle, user, onLogo
         }
       ]
     },
+    { 
+      icon: Wallet, 
+      label: 'Wallet',
+      isExpandable: false
+    },
+    { 
+      icon: CreditCard, 
+      label: 'Pricing',
+      isExpandable: false
+    },
   ];
 
   return (

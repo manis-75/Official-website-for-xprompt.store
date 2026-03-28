@@ -7,6 +7,8 @@ import { Model } from './components/Model';
 import { AddImage } from './components/AddImage';
 import { IconImage } from './components/IconImage';
 import { YoutubeThumbnail } from './components/YoutubeThumbnail';
+import { Wallet } from './components/Wallet';
+import { Pricing } from './components/Pricing';
 import { Auth } from './components/Auth';
 import { AdminPanel } from './components/AdminPanel';
 import { Settings } from './components/Settings';
@@ -169,6 +171,8 @@ export default function App() {
         {activeTab === 'Home' && <Home onTabChange={setActiveTab} />}
         {activeTab === 'Library' && <Library />}
         {activeTab === 'Explore' && <Explore />}
+        {activeTab === 'Wallet' && <Wallet />}
+        {activeTab === 'Pricing' && <Pricing onTabChange={setActiveTab} />}
         {(activeTab.startsWith('AI Influencer') || activeTab === 'Model') && <Model activeTab={activeTab} />}
         {(activeTab.startsWith('Ad Templates') || activeTab === 'Ad Studio') && <AddImage activeTab={activeTab} />}
         {(activeTab.startsWith('Trending') || activeTab.startsWith('All Category') || activeTab === 'Thumbnail') && <YoutubeThumbnail activeTab={activeTab} />}
@@ -181,7 +185,7 @@ export default function App() {
           />
         )}
         {activeTab === 'Account Details' && user && <AccountDetails user={user} onNavigate={setActiveTab} />}
-        {activeTab !== 'Home' && activeTab !== 'Library' && activeTab !== 'Explore' && !activeTab.startsWith('AI Influencer') && activeTab !== 'Model' && !activeTab.startsWith('Ad Templates') && activeTab !== 'Ad Studio' && 
+        {activeTab !== 'Home' && activeTab !== 'Library' && activeTab !== 'Explore' && activeTab !== 'Wallet' && activeTab !== 'Pricing' && !activeTab.startsWith('AI Influencer') && activeTab !== 'Model' && !activeTab.startsWith('Ad Templates') && activeTab !== 'Ad Studio' && 
          !activeTab.startsWith('Trending') && !activeTab.startsWith('All Category') && activeTab !== 'Thumbnail' && 
          !activeTab.startsWith('Logo Prompt') && !activeTab.startsWith('Icon Prompt') && activeTab !== 'Logo Image' && activeTab !== 'Admin Panel' && activeTab !== 'Settings' && activeTab !== 'Account Details' && (
           <div className="flex items-center justify-center h-full text-zinc-500">
