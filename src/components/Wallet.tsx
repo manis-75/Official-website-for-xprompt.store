@@ -3,8 +3,7 @@ import { motion } from 'motion/react';
 import { Wallet as WalletIcon, Plus, History, ArrowUpRight, ArrowDownLeft, Search, Filter, CreditCard, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { db, auth } from '../lib/firebase';
-import { collection, query, orderBy, limit, getDocs, doc, getDoc, onSnapshot } from 'firebase/firestore';
-import { PaymentModal } from './PaymentModal';
+import { doc, getDoc, onSnapshot, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { UserProfile } from '../App';
 
 interface Transaction {
@@ -20,11 +19,10 @@ interface Transaction {
   description?: string;
 }
 
-export const Wallet = () => {
+export const Wallet = ({ onOpenPayment }: { onOpenPayment?: () => void }) => {
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'credit' | 'debit'>('all');
 
@@ -88,7 +86,7 @@ export const Wallet = () => {
           <p className="text-zinc-400 mt-1">Manage your balance and view transaction history</p>
         </div>
         <button
-          onClick={() => setIsPaymentModalOpen(true)}
+          onClick={() => onOpenPayment?.()}
           className="flex items-center justify-center gap-2 bg-white text-black font-bold py-3 px-6 rounded-xl hover:bg-zinc-200 transition-all active:scale-95 shadow-lg shadow-white/5"
         >
           <Plus size={20} />
@@ -271,11 +269,6 @@ export const Wallet = () => {
           )}
         </div>
       </div>
-
-      <PaymentModal 
-        isOpen={isPaymentModalOpen} 
-        onClose={() => setIsPaymentModalOpen(false)} 
-      />
     </div>
   );
 };

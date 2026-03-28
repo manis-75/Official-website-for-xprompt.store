@@ -13,6 +13,7 @@ import { Auth } from './components/Auth';
 import { AdminPanel } from './components/AdminPanel';
 import { Settings } from './components/Settings';
 import { AccountDetails } from './components/AccountDetails';
+import { PaymentModal } from './components/PaymentModal';
 import { cn } from './lib/utils';
 import { auth, db } from './lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -34,6 +35,8 @@ export default function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('100');
 
   useEffect(() => {
     // Global Image Protection & Security
@@ -141,6 +144,11 @@ export default function App() {
     }
   };
 
+  const handleOpenPayment = (amount: string) => {
+    setPaymentAmount(amount);
+    setIsPaymentModalOpen(true);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -171,8 +179,8 @@ export default function App() {
         {activeTab === 'Home' && <Home onTabChange={setActiveTab} />}
         {activeTab === 'Library' && <Library />}
         {activeTab === 'Explore' && <Explore />}
-        {activeTab === 'Wallet' && <Wallet />}
-        {activeTab === 'Pricing' && <Pricing onTabChange={setActiveTab} />}
+        {activeTab === 'Wallet' && <Wallet onOpenPayment={() => setIsPaymentModalOpen(true)} />}
+        {activeTab === 'Pricing' && <Pricing onTabChange={setActiveTab} onOpenPayment={handleOpenPayment} />}
         {(activeTab.startsWith('AI Influencer') || activeTab === 'Model') && <Model activeTab={activeTab} />}
         {(activeTab.startsWith('Ad Templates') || activeTab === 'Ad Studio') && <AddImage activeTab={activeTab} />}
         {(activeTab.startsWith('Trending') || activeTab.startsWith('All Category') || activeTab === 'Thumbnail') && <YoutubeThumbnail activeTab={activeTab} />}
@@ -193,6 +201,13 @@ export default function App() {
           </div>
         )}
       </main>
+
+      <PaymentModal 
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        initialAmount={paymentAmount}
+        onLoginClick={() => setShowAuth(true)}
+      />
     </div>
   );
 }

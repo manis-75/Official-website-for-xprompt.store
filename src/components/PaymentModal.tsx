@@ -27,7 +27,7 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
     
     try {
       // Advanced simulated verification with the bank
-      await new Promise(resolve => setTimeout(resolve, 4000));
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
       const userRef = doc(db, 'users', auth.currentUser.uid);
       const userDoc = await getDoc(userRef);
@@ -85,16 +85,6 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
       setIsProcessing(false);
     }
   };
-
-  useEffect(() => {
-    if (step === 'qr') {
-      // Automatically "detect" payment after 8 seconds for a seamless experience
-      const timer = setTimeout(() => {
-        handlePaymentComplete();
-      }, 8000);
-      return () => clearTimeout(timer);
-    }
-  }, [step]);
 
   const handleProceed = () => {
     const numAmount = Number(amount);
@@ -162,7 +152,7 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
                 <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
                   
                   <div className="grid grid-cols-3 gap-3">
-                    {['100', '250', '500', '1000', '2000', '5000'].map((preset) => (
+                    {['100', '250', '499', '1000', '2000', '5000'].map((preset) => (
                       <button
                         key={preset}
                         onClick={() => setAmount(preset)}
@@ -223,9 +213,15 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
                     />
                   </div>
                   
-                  <div className="flex flex-col items-center gap-2">
-                    <Loader2 className="animate-spin text-zinc-700" size={16} />
-                    <p className="text-[10px] font-mono text-zinc-700 uppercase tracking-[0.3em]">Detecting Payment...</p>
+                  <div className="flex flex-col items-center gap-4 w-full">
+                    <button
+                      onClick={handlePaymentComplete}
+                      className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-zinc-200 transition-all flex items-center justify-center gap-2"
+                    >
+                      <CheckCircle2 size={20} />
+                      I have paid ₹{amount}
+                    </button>
+                    <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.3em]">Scan and click verify after payment</p>
                   </div>
                 </motion.div>
               )}

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Heart, Eye, Download, Share2, Sparkles, Copy, Check } from 'lucide-react';
+import { X, Heart, Eye, Download, Share2, Sparkles, Copy, Check, Wallet } from 'lucide-react';
 import { ImageItem, AI_WEBSITE_LOGOS } from '../constants';
 import { db, auth } from '../lib/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, addDoc, collection } from 'firebase/firestore';
 import { ProtectedImage } from './ProtectedImage';
+import { cn } from '../lib/utils';
 
 interface ImageModalProps {
   image: ImageItem | null;
@@ -18,15 +19,34 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
   const [isDownloading, setIsDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedVar, setCopiedVar] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [isDeducted, setIsDeducted] = useState(false);
 
   if (!image) return null;
 
+  // Check if this item should be paid
+  const isPaid = image.aiModels && image.aiModels.length > 0 && 
+                 image.version && image.seed && 
+                 !image.aiModels.some(m => m.toLowerCase().includes('gemini'));
+
   useEffect(() => {
+    const fetchWallet = async () => {
+      if (!auth.currentUser) return;
+      try {
+        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        if (userDoc.exists()) {
+          setWalletBalance(userDoc.data().walletBalance || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching wallet:", error);
+      }
+    };
+    fetchWallet();
+
     const incrementViews = async () => {
       const newViews = (image.views || 0) + 1;
       const targetCollection = image.collection || activeTab || systemType;
       
-      // Remove undefined values to prevent Firestore errors
       const cleanImage = Object.fromEntries(Object.entries(image).filter(([_, v]) => v !== undefined));
 
       try {
@@ -42,16 +62,59 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
     incrementViews();
   }, [image.id, image.collection, activeTab, systemType]);
 
-  const handleCopyPrompt = () => {
+  const deductCredits = async () => {
+    if (!auth.currentUser || !isPaid || isDeducted) return true;
+    
+    if (walletBalance === null) return false;
+    if (walletBalance < 3) {
+      alert("Insufficient balance! Please add ₹3 to your wallet to access this premium content.");
+      return false;
+    }
+
+    try {
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      await updateDoc(userRef, {
+        walletBalance: walletBalance - 3
+      });
+      
+      await addDoc(collection(db, 'users', auth.currentUser.uid, 'transactions'), {
+        amount: 3,
+        type: 'Debit',
+        isCredit: false,
+        status: 'completed',
+        title: `Premium Access: ${image.title}`,
+        date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+        timestamp: new Date().toISOString(),
+        description: `₹3 deducted for premium ${image.type === 'video' ? 'video' : 'image'} access`,
+        createdAt: new Date().toISOString()
+      });
+
+      setWalletBalance(prev => (prev !== null ? prev - 3 : null));
+      setIsDeducted(true);
+      return true;
+    } catch (error) {
+      console.error("Error deducting credits:", error);
+      alert("Something went wrong with the payment. Please try again.");
+      return false;
+    }
+  };
+
+  const handleCopyPrompt = async () => {
     if (image.prompt) {
+      const success = await deductCredits();
+      if (!success) return;
+
       navigator.clipboard.writeText(image.prompt);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
   };
 
-  const handleCopyVarPrompt = () => {
+  const handleCopyVarPrompt = async () => {
     if (image.variablePrompt) {
+      const success = await deductCredits();
+      if (!success) return;
+
       navigator.clipboard.writeText(image.variablePrompt);
       setCopiedVar(true);
       setTimeout(() => setCopiedVar(false), 2000);
@@ -60,6 +123,10 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
 
   const handleDownload = async () => {
     if (isDownloading) return;
+    
+    const success = await deductCredits();
+    if (!success) return;
+
     setIsDownloading(true);
     try {
       const response = await fetch(image.url);
@@ -188,8 +255,13 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
             )}
             <div className="flex items-start justify-between mb-2">
               <h2 className="text-xl font-bold text-white">{image.title}</h2>
-              <div className="bg-indigo-600/20 text-indigo-400 px-3 py-1 rounded-full text-sm font-bold border border-indigo-500/30 shrink-0 ml-4">
-                Free
+              <div className={cn(
+                "px-3 py-1 rounded-full text-sm font-bold border shrink-0 ml-4",
+                isPaid 
+                  ? "bg-amber-600/20 text-amber-400 border-amber-500/30" 
+                  : "bg-indigo-600/20 text-indigo-400 border-indigo-500/30"
+              )}>
+                {isPaid ? '₹3' : 'Free'}
               </div>
             </div>
             

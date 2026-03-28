@@ -61,7 +61,27 @@ const PLANS: PricingPlan[] = [
   }
 ];
 
-export const Pricing = ({ onTabChange }: { onTabChange?: (tab: string) => void }) => {
+export const Pricing = ({ onTabChange, onOpenPayment }: { onTabChange?: (tab: string) => void, onOpenPayment?: (amount: string) => void }) => {
+  const handlePlanAction = (plan: PricingPlan) => {
+    if (plan.price === 'Free') {
+      onTabChange?.('Explore');
+      return;
+    }
+    
+    if (plan.price === 'Custom') {
+      onTabChange?.('Wallet');
+      return;
+    }
+
+    // Extract numeric value from price string (e.g., "₹499" -> "499")
+    const amount = plan.price.replace(/[^0-9]/g, '');
+    if (amount && onOpenPayment) {
+      onOpenPayment(amount);
+    } else {
+      onTabChange?.('Wallet');
+    }
+  };
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-12 font-sans">
       {/* Header */}
@@ -149,7 +169,7 @@ export const Pricing = ({ onTabChange }: { onTabChange?: (tab: string) => void }
             </div>
 
             <button
-              onClick={() => onTabChange?.('Wallet')}
+              onClick={() => handlePlanAction(plan)}
               className={cn(
                 "w-full py-4 rounded-2xl font-bold text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-2 group/btn",
                 plan.isPopular 
