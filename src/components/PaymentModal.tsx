@@ -16,75 +16,7 @@ interface PaymentModalProps {
 
 export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess, onLoginClick }: PaymentModalProps) => {
   const [amount, setAmount] = useState(initialAmount);
-  const [step, setStep] = useState<'amount' | 'qr' | 'processing' | 'success'>('amount');
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  const handlePaymentComplete = async () => {
-    if (!auth.currentUser) return;
-
-    setIsProcessing(true);
-    setStep('processing');
-    
-    try {
-      // Advanced simulated verification with the bank
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
-      const userRef = doc(db, 'users', auth.currentUser.uid);
-      const userDoc = await getDoc(userRef);
-      
-      const amountToAdd = Number(amount);
-      
-      if (!userDoc.exists()) {
-        await setDoc(userRef, {
-          uid: auth.currentUser.uid,
-          email: auth.currentUser.email,
-          walletBalance: amountToAdd,
-          createdAt: new Date().toISOString()
-        });
-      } else {
-        const currentBalance = userDoc.data().walletBalance || 0;
-        await updateDoc(userRef, {
-          walletBalance: currentBalance + amountToAdd
-        });
-      }
-
-      // Record transaction in history
-      await addDoc(collection(db, 'users', auth.currentUser.uid, 'transactions'), {
-        amount: amountToAdd,
-        type: 'Credit',
-        isCredit: true,
-        status: 'completed',
-        title: 'Wallet Top-up',
-        date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
-        timestamp: new Date().toISOString(),
-        method: 'UPI_QR',
-        description: `₹${amount} added to wallet via UPI QR`,
-        createdAt: new Date().toISOString()
-      });
-
-      // Log for admin records
-      await addDoc(collection(db, 'payments'), {
-        userId: auth.currentUser.uid,
-        userEmail: auth.currentUser.email,
-        amount: amountToAdd,
-        method: 'UPI_QR',
-        status: 'completed',
-        createdAt: new Date().toISOString()
-      });
-      
-      setStep('success');
-      if (onSuccess) {
-        onSuccess();
-      }
-    } catch (error) {
-      console.error("Payment verification error:", error);
-      handleFirestoreError(error, OperationType.WRITE, 'users');
-      setStep('qr');
-      alert("Verification failed. Please ensure your payment was successful and try again.");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  const [step, setStep] = useState<'amount' | 'qr'>('amount');
 
   const handleProceed = () => {
     const numAmount = Number(amount);
@@ -92,17 +24,6 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
       alert("Please enter a valid amount between ₹10 and ₹10,000");
       return;
     }
-
-    if (!auth.currentUser) {
-      if (onLoginClick) {
-        onLoginClick();
-        onClose();
-      } else {
-        alert("Please login to continue with the payment.");
-      }
-      return;
-    }
-
     setStep('qr');
   };
 
@@ -119,7 +40,6 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm font-sans"
-          onClick={step === 'success' ? resetAndClose : undefined}
         >
           <motion.div
             initial={{ scale: 0.98, opacity: 0, y: 10 }}
@@ -131,13 +51,10 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
             {/* Header */}
             <div className="flex items-start justify-between p-6 pb-2 shrink-0">
               <div className="space-y-1.5">
-                <h2 className="text-xl font-bold text-white">Add Funds to Wallet</h2>
-                {step === 'amount' && (
-                  <p className="text-sm text-zinc-400">Choose an amount and payment method to add funds to your wallet.</p>
-                )}
-                {step === 'qr' && (
-                  <p className="text-sm text-zinc-400">Scan this QR to pay ₹{amount}</p>
-                )}
+                <h2 className="text-xl font-bold text-white">QR Code Generator</h2>
+                <p className="text-sm text-zinc-400">
+                  {step === 'amount' ? 'Select an amount to generate a payment QR code.' : `Payment QR for ₹${amount}`}
+                </p>
               </div>
               <button 
                 onClick={resetAndClose}
@@ -192,13 +109,9 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
                     <button 
                       onClick={handleProceed}
                       disabled={!amount || Number(amount) < 10 || Number(amount) > 10000}
-                      className="px-6 py-2.5 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{ 
-                        backgroundColor: amount && Number(amount) >= 10 && Number(amount) <= 10000 ? '#e4e4e7' : '#52525b',
-                        color: amount && Number(amount) >= 10 && Number(amount) <= 10000 ? '#000' : '#a1a1aa'
-                      }}
+                      className="px-6 py-2.5 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-white text-black hover:bg-zinc-200"
                     >
-                      Pay ₹{amount || '0'}
+                      Generate
                     </button>
                   </div>
                 </motion.div>
@@ -213,52 +126,9 @@ export const PaymentModal = ({ isOpen, onClose, initialAmount = '500', onSuccess
                     />
                   </div>
                   
-                  <div className="flex flex-col items-center gap-4 w-full">
-                    <button
-                      onClick={handlePaymentComplete}
-                      className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-zinc-200 transition-all flex items-center justify-center gap-2"
-                    >
-                      <CheckCircle2 size={20} />
-                      I have paid ₹{amount}
-                    </button>
-                    <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.3em]">Scan and click verify after payment</p>
+                  <div className="text-center">
+                    <p className="text-zinc-500 text-xs uppercase tracking-widest">Scan to pay ₹{amount}</p>
                   </div>
-                </motion.div>
-              )}
-
-              {step === 'processing' && (
-                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center py-12 space-y-6 text-center">
-                  <div className="relative">
-                    <div className="w-20 h-20 border-4 border-zinc-800 border-t-white rounded-full animate-spin" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Smartphone className="w-8 h-8 text-zinc-500" />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-white uppercase tracking-widest">Verifying with Bank</h3>
-                    <p className="text-zinc-400 font-mono text-sm max-w-[250px]">Securely confirming your transaction. Please do not close this window.</p>
-                  </div>
-                </motion.div>
-              )}
-
-              {step === 'success' && (
-                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center py-8 space-y-6 text-center">
-                  <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 rounded-full shadow-[0_0_30px_rgba(16,185,129,0.2)]">
-                    <CheckCircle2 className="w-10 h-10" />
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="text-2xl font-bold text-white uppercase tracking-wider">Payment Successful</h3>
-                    <div className="bg-zinc-900 border border-zinc-800 px-6 py-3 rounded-2xl inline-block mt-2">
-                      <p className="text-emerald-400 font-mono text-lg font-bold">₹{amount}.00 Added</p>
-                    </div>
-                    <p className="text-zinc-500 text-sm mt-4">Your wallet balance has been updated successfully.</p>
-                  </div>
-                  <button 
-                    onClick={resetAndClose}
-                    className="w-full bg-white text-black font-bold py-4 hover:bg-zinc-200 transition-colors text-sm uppercase tracking-widest mt-4 rounded-xl"
-                  >
-                    Continue to Dashboard
-                  </button>
                 </motion.div>
               )}
             </div>
