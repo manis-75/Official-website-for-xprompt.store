@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Image as ImageIcon, CheckCircle, AlertCircle, Link as LinkIcon, Sparkles, Video, ChevronDown, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Image as ImageIcon, CheckCircle, AlertCircle, Link as LinkIcon, Sparkles, Video, ChevronDown, X, Eye, Heart } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { collection, addDoc, getDocs, updateDoc, doc, getDoc, setDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { GoogleGenAI, Type } from "@google/genai";
@@ -1152,44 +1153,74 @@ export const AdminPanel = () => {
                   <p className="text-zinc-400">Loading database items...</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 space-y-4">
                   {dbItems
                     .filter(item => item.title?.toLowerCase().includes(dbSearch.toLowerCase()))
-                    .map(item => (
-                    <div key={item.id} className="bg-zinc-900 border border-white/10 rounded-2xl overflow-hidden group">
-                      <div className="aspect-[4/5] relative">
+                    .map((item, index) => (
+                    <motion.div 
+                      key={item.id} 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.02 }}
+                      className="relative group break-inside-avoid rounded-2xl overflow-hidden cursor-pointer bg-zinc-900 border border-white/5"
+                    >
+                      <div className="relative">
                         {item.type === 'video' ? (
-                          <div className="w-full h-full bg-black flex items-center justify-center">
-                            <Video size={40} className="text-indigo-500" />
-                          </div>
+                          <video 
+                            src={item.url} 
+                            className="w-full h-auto object-cover"
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                          />
                         ) : (
                           <img 
                             src={item.url} 
                             alt={item.title} 
-                            className="w-full h-full object-cover"
+                            className="w-full h-auto object-cover"
                             referrerPolicy="no-referrer"
                           />
                         )}
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                          <button
-                            onClick={() => handleDeleteItem(item.id, item.collection)}
-                            className="p-3 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors shadow-lg"
-                            title="Delete Item"
-                          >
-                            <Trash2 size={20} />
-                          </button>
+                        
+                        {/* Hover Overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-white font-medium text-sm truncate mr-2">{item.title}</span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteItem(item.id, item.collection);
+                                  }}
+                                  className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors shadow-lg"
+                                  title="Delete Item"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center justify-between text-[10px] text-zinc-400">
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-1">
+                                  <Eye size={12} />
+                                  <span>{item.views || 0}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Heart size={12} />
+                                  <span>{item.likes || 0}</span>
+                                </div>
+                              </div>
+                              <span className="px-2 py-0.5 bg-zinc-800 rounded uppercase font-bold text-zinc-500">
+                                {item.collection}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="p-4">
-                        <h3 className="text-white font-medium truncate mb-1">{item.title}</h3>
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-zinc-500 text-[10px] truncate flex-1">{item.url}</p>
-                          <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded text-[10px] uppercase font-bold shrink-0">
-                            {item.collection}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                    </motion.div>
                   ))}
                   {dbItems.length === 0 && (
                     <div className="col-span-full py-20 text-center bg-zinc-900/50 rounded-3xl border border-dashed border-white/10">
