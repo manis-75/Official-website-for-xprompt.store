@@ -624,8 +624,9 @@ export const AdminPanel = () => {
         ? prev.filter(m => m !== model) 
         : [...prev, model];
       
-      // Price is always 0
-      setPrice(0);
+      // If any model other than Gemini is selected, set price to 3
+      const hasNonGemini = newModels.some(m => !m.toLowerCase().includes('gemini'));
+      setPrice(hasNonGemini ? 3 : 0);
       
       return newModels;
     });

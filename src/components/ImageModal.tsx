@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Heart, Eye, Download, Share2, Sparkles, Copy, Check, Wallet } from 'lucide-react';
+import { X, Heart, Eye, Download, Share2, Sparkles, Copy, Check, Wallet, Lock, Unlock, ShoppingCart } from 'lucide-react';
 import { ImageItem, AI_WEBSITE_LOGOS } from '../constants';
 import { db, auth } from '../lib/firebase';
 import { doc, setDoc, getDoc, updateDoc, addDoc, collection } from 'firebase/firestore';
@@ -26,8 +26,7 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
 
   // Check if this item should be paid
   const isPaid = image.aiModels && image.aiModels.length > 0 && 
-                 image.version && image.seed && 
-                 !image.aiModels.some(m => m.toLowerCase().includes('gemini'));
+                 image.aiModels.some(m => !m.toLowerCase().includes('gemini'));
 
   useEffect(() => {
     const fetchWallet = async () => {
@@ -277,27 +276,35 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
             </div>
           </div>
 
-          {/* Actions */}
+          {/* Actions - Matching User Image Design */}
           <div className="flex flex-col gap-3">
             <button 
               onClick={handleActionClick}
               disabled={isDownloading}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 px-4 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+              className={cn(
+                "w-full py-3.5 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 text-white",
+                isPaid && !isDeducted 
+                  ? "bg-[#5844ff] hover:bg-[#4a39e6] shadow-lg shadow-indigo-500/20" 
+                  : "bg-indigo-600 hover:bg-indigo-500"
+              )}
             >
-              <Download size={18} />
-              {isDownloading ? 'Downloading...' : 'Download Media'}
+              {isPaid && !isDeducted ? <ShoppingCart size={18} /> : <Download size={18} />}
+              {isDownloading ? 'Downloading...' : isPaid && !isDeducted ? 'Pay ₹3 to Unlock & Download' : 'Download Media'}
             </button>
             <div className="flex gap-3">
               <button 
                 onClick={handleLike}
-                className={`flex-1 py-3 rounded-xl transition-colors flex items-center justify-center gap-2 ${isLiked ? 'bg-pink-500/20 text-pink-500' : 'bg-zinc-800 hover:bg-zinc-700 text-white'}`}
+                className={cn(
+                  "flex-1 py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 font-medium",
+                  isLiked ? 'bg-pink-500/20 text-pink-500' : 'bg-[#1a1a1a] hover:bg-[#252525] text-zinc-300'
+                )}
               >
                 <Heart size={18} className={isLiked ? "fill-pink-500" : ""} />
-                {isLiked ? 'Liked' : 'Like'}
+                Like
               </button>
               <button 
                 onClick={handleShare}
-                className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl transition-colors flex items-center justify-center gap-2"
+                className="flex-1 py-3.5 bg-[#1a1a1a] hover:bg-[#252525] text-zinc-300 rounded-xl transition-colors flex items-center justify-center gap-2 font-medium"
               >
                 <Share2 size={18} />
                 Share
@@ -323,38 +330,66 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
 
           <div className="w-full h-px bg-white/10 my-2" />
 
-          {/* Prompts */}
+          {/* Prompts Section */}
           <div className="space-y-6 pb-8">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Prompt</h3>
-                <button onClick={handleCopyPrompt} className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
-                  {copied ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
-                  <span className="text-xs">{copied ? 'Copied' : 'Copy'}</span>
-                </button>
-              </div>
-              <div className="bg-black/50 p-4 rounded-xl border border-white/5">
-                <p className="text-zinc-300 text-sm leading-relaxed">
-                  {image.prompt || "No prompt available."}
-                </p>
-              </div>
-            </div>
-
-            {image.variablePrompt && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Variable Prompt</h3>
-                  <button onClick={handleCopyVarPrompt} className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
-                    {copiedVar ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
-                    <span className="text-xs">{copiedVar ? 'Copied' : 'Copy'}</span>
-                  </button>
+            {isPaid && !isDeducted ? (
+              /* Locked Design System Card - Matching User Image */
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-[#0a0a0a] border border-zinc-800 rounded-2xl p-8 flex flex-col items-center text-center space-y-4"
+              >
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-zinc-500 mb-2">
+                  <Lock size={32} strokeWidth={1.5} />
                 </div>
-                <div className="bg-black/50 p-4 rounded-xl border border-white/5">
-                  <p className="text-zinc-400 text-sm font-mono">
-                    {image.variablePrompt}
+                <div className="space-y-2">
+                  <h3 className="text-lg font-bold text-white">Prompts are Locked</h3>
+                  <p className="text-zinc-500 text-sm leading-relaxed max-w-[280px] mx-auto">
+                    Pay ₹3 to unlock the generation prompt, variable prompt, and download the media.
                   </p>
                 </div>
-              </div>
+                <button 
+                  onClick={deductCredits}
+                  className="w-full max-w-[200px] py-3 bg-[#1a1a1a] hover:bg-[#252525] text-white font-bold rounded-xl transition-all active:scale-95 border border-zinc-800"
+                >
+                  Pay ₹3 from Wallet
+                </button>
+              </motion.div>
+            ) : (
+              /* Unlocked Prompts */
+              <>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Prompt</h3>
+                    <button onClick={handleCopyPrompt} className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                      {copied ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
+                      <span className="text-xs">{copied ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
+                  <div className="bg-black/50 p-4 rounded-xl border border-white/5">
+                    <p className="text-zinc-300 text-sm leading-relaxed">
+                      {image.prompt || "No prompt available."}
+                    </p>
+                  </div>
+                </div>
+
+                {image.variablePrompt && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Variable Prompt</h3>
+                      <button onClick={handleCopyVarPrompt} className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                        {copiedVar ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
+                        <span className="text-xs">{copiedVar ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                    <div className="bg-black/50 p-4 rounded-xl border border-white/5">
+                      <p className="text-zinc-400 text-sm font-mono">
+                        {image.variablePrompt}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {(image.version || image.seed) && (
