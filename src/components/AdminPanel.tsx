@@ -3,7 +3,7 @@ import { Image as ImageIcon, CheckCircle, AlertCircle, Link as LinkIcon, Sparkle
 import { db } from '../lib/firebase';
 import { collection, addDoc, getDocs, updateDoc, doc, getDoc, setDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { GoogleGenAI, Type } from "@google/genai";
-import { Trash2, Database, Search } from 'lucide-react';
+import { Trash2, Database, Search, RefreshCw } from 'lucide-react';
 import { IMAGE_AI_WEBSITES, VIDEO_AI_WEBSITES, AI_MODEL_VERSIONS } from '../constants';
 
 const CATEGORIES = [
@@ -182,7 +182,7 @@ export const AdminPanel = () => {
     try {
       const counts: Record<string, number> = {};
       
-      // 1. Fetch Explore collection counts
+      // 1. Fetch Explore collection counts and categorize them
       const exploreSnap = await getDocs(collection(db, 'Explore'));
       exploreSnap.docs.forEach(doc => {
         const data = doc.data();
@@ -191,20 +191,29 @@ export const AdminPanel = () => {
       });
 
       // 2. Fetch other collections counts
-      const exploreSubCategories = CATEGORIES.filter(c => 
-        ![ "Explore", ...CATEGORIES.filter(cat => cat.id.includes(':')).map(cat => cat.id) ].includes(c.id)
-      ).map(c => c.id);
-      
-      const otherCollections = CATEGORIES.filter(c => 
-        !exploreSubCategories.includes(c.id) && c.id !== 'Explore'
-      ).map(c => c.id);
+      // Get all unique collection names from CATEGORIES that are not in Explore sub-categories
+      const exploreSubCategories = [
+        "Fashion Model", "Fitness Model", "Glamour Model", "Traditional Model", "Casual Lifestyle",
+        "Product Ads", "Fashion Ads", "Fitness Ads", "Beauty Ads", "Food Ads", "Tech Ads", 
+        "Business Ads", "Social Ads", "Story Ads", "Global Style", "Luxury Ads", "Ecom Ads",
+        "Gaming", "Stock Market", "Personal Finance", "Tech", "Vlogging", "Cricket", "Movies", 
+        "Web Series", "Comedy", "Podcast", "Fitness", "Motivation", "Education", "Online Earning", 
+        "Business Ideas", "Automobile", "Cooking", "Real Estate", "Spirituality", "Fashion", 
+        "Beauty", "Parenting", "Coding", "Graphic Design", "Photography", "Travel", "News", 
+        "Science", "AI", "Government Schemes"
+      ];
+
+      const otherCollections = Array.from(new Set(CATEGORIES
+        .map(c => c.id)
+        .filter(id => id !== 'Explore' && !exploreSubCategories.includes(id))
+      ));
 
       for (const colId of otherCollections) {
         try {
           const snap = await getDocs(collection(db, colId));
           counts[colId] = snap.size;
         } catch (e) {
-          console.warn(`Failed to fetch count for collection ${colId}`, e);
+          // Collection might not exist yet
         }
       }
 
@@ -216,7 +225,58 @@ export const AdminPanel = () => {
     }
   };
 
+  const fetchAllItems = async () => {
+    setIsLoadingDb(true);
+    setSelectedDbCategory('All Media');
+    try {
+      let allItems: any[] = [];
+      
+      // 1. Fetch all from Explore
+      const exploreSnap = await getDocs(collection(db, 'Explore'));
+      allItems = [...exploreSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), collection: 'Explore' }))];
+
+      // 2. Fetch from other collections
+      const exploreSubCategories = [
+        "Fashion Model", "Fitness Model", "Glamour Model", "Traditional Model", "Casual Lifestyle",
+        "Product Ads", "Fashion Ads", "Fitness Ads", "Beauty Ads", "Food Ads", "Tech Ads", 
+        "Business Ads", "Social Ads", "Story Ads", "Global Style", "Luxury Ads", "Ecom Ads",
+        "Gaming", "Stock Market", "Personal Finance", "Tech", "Vlogging", "Cricket", "Movies", 
+        "Web Series", "Comedy", "Podcast", "Fitness", "Motivation", "Education", "Online Earning", 
+        "Business Ideas", "Automobile", "Cooking", "Real Estate", "Spirituality", "Fashion", 
+        "Beauty", "Parenting", "Coding", "Graphic Design", "Photography", "Travel", "News", 
+        "Science", "AI", "Government Schemes"
+      ];
+
+      const otherCollections = Array.from(new Set(CATEGORIES
+        .map(c => c.id)
+        .filter(id => id !== 'Explore' && !exploreSubCategories.includes(id))
+      ));
+
+      for (const colId of otherCollections) {
+        try {
+          const snap = await getDocs(collection(db, colId));
+          const colItems = snap.docs.map(doc => ({ id: doc.id, ...doc.data(), collection: colId }));
+          allItems = [...allItems, ...colItems];
+        } catch (e) {
+          // Skip
+        }
+      }
+
+      // Sort by date descending
+      allItems.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      setDbItems(allItems);
+    } catch (err) {
+      console.error("Error fetching all items:", err);
+    } finally {
+      setIsLoadingDb(false);
+    }
+  };
+
   const fetchItemsByCategory = async (catId: string) => {
+    if (catId === 'all') {
+      await fetchAllItems();
+      return;
+    }
     setIsLoadingDb(true);
     setSelectedDbCategory(catId);
     try {
@@ -1012,22 +1072,43 @@ export const AdminPanel = () => {
       {activeTab === 'database' && (
         <div className="space-y-8">
           {!selectedDbCategory ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {CATEGORIES.map(cat => (
-                <button
-                  key={cat.id}
-                  onClick={() => fetchItemsByCategory(cat.id)}
-                  className="bg-zinc-900 border border-white/10 p-6 rounded-2xl hover:border-indigo-500/50 transition-all text-left group"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-white font-semibold group-hover:text-indigo-400 transition-colors">{cat.label}</span>
-                    <Database size={18} className="text-zinc-500 group-hover:text-indigo-400" />
-                  </div>
-                  <div className="text-zinc-500 text-sm">
-                    {categoryCounts[cat.id] || 0} Items
-                  </div>
-                </button>
-              ))}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-white">Select Category</h2>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => fetchCategoryCounts()}
+                    className="p-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-xl transition-all border border-white/5"
+                    title="Refresh Counts"
+                  >
+                    <RefreshCw size={18} className={isLoadingDb ? 'animate-spin' : ''} />
+                  </button>
+                  <button
+                    onClick={() => fetchAllItems()}
+                    className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-bold transition-all shadow-lg flex items-center gap-2"
+                  >
+                    <Database size={18} />
+                    VIEW ALL MEDIA
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {CATEGORIES.map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => fetchItemsByCategory(cat.id)}
+                    className="bg-zinc-900 border border-white/10 p-6 rounded-2xl hover:border-indigo-500/50 transition-all text-left group"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-white font-semibold group-hover:text-indigo-400 transition-colors">{cat.label}</span>
+                      <Database size={18} className="text-zinc-500 group-hover:text-indigo-400" />
+                    </div>
+                    <div className="text-zinc-500 text-sm">
+                      {categoryCounts[cat.id] || 0} Items
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
             <div className="space-y-6">
@@ -1040,6 +1121,13 @@ export const AdminPanel = () => {
                   Back to Categories
                 </button>
                 <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => selectedDbCategory === 'All Media' ? fetchAllItems() : fetchItemsByCategory(selectedDbCategory!)}
+                    className="p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-lg transition-all border border-white/5"
+                    title="Refresh Items"
+                  >
+                    <RefreshCw size={16} className={isLoadingDb ? 'animate-spin' : ''} />
+                  </button>
                   <h2 className="text-xl font-bold text-white">{selectedDbCategory}</h2>
                   <span className="px-3 py-1 bg-indigo-500/20 text-indigo-400 rounded-full text-xs font-bold">
                     {dbItems.length} Items
@@ -1094,7 +1182,12 @@ export const AdminPanel = () => {
                       </div>
                       <div className="p-4">
                         <h3 className="text-white font-medium truncate mb-1">{item.title}</h3>
-                        <p className="text-zinc-500 text-xs truncate">{item.url}</p>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-zinc-500 text-[10px] truncate flex-1">{item.url}</p>
+                          <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded text-[10px] uppercase font-bold shrink-0">
+                            {item.collection}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   ))}
