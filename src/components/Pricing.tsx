@@ -21,7 +21,7 @@ const PLANS: PricingPlan[] = [
     icon: <Zap className="text-blue-400" size={24} />,
     color: "blue",
     features: [
-      "10 AI Generations per day",
+      "10 Free Prompts (One-time)",
       "Standard Resolution",
       "Public Gallery Access",
       "Basic Support",
@@ -52,7 +52,6 @@ const PLANS: PricingPlan[] = [
     color: "amber",
     features: [
       "Everything in Pro",
-      "API Access",
       "Dedicated Account Manager",
       "Custom Model Training",
       "SLA Guarantee",
@@ -69,7 +68,11 @@ export const Pricing = ({ onTabChange, onOpenPayment }: { onTabChange?: (tab: st
     }
     
     if (plan.price === 'Custom') {
-      onTabChange?.('Wallet');
+      if (onOpenPayment) {
+        onOpenPayment('5000'); // Open payment modal with a custom high amount
+      } else {
+        onTabChange?.('Wallet');
+      }
       return;
     }
 

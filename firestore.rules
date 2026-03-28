@@ -25,7 +25,23 @@ service cloud.firestore {
 
     match /{collectionName}/{documentId} {
       allow read: if collectionName != 'users';
-      allow write: if collectionName != 'users' && isAdmin();
+      
+      allow create, delete: if collectionName != 'users' && isAdmin();
+      
+      allow update: if collectionName != 'users' && (
+        isAdmin() || 
+        (
+          // Allow anyone to update views
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views']) &&
+          request.resource.data.views == resource.data.views + 1
+        ) ||
+        (
+          // Allow authenticated users to update likes
+          request.auth != null &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) &&
+          (request.resource.data.likes == resource.data.likes + 1 || request.resource.data.likes == resource.data.likes - 1)
+        )
+      );
     }
   }
 }

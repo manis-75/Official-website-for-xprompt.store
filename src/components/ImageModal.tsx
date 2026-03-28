@@ -20,6 +20,7 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
   const [copied, setCopied] = useState(false);
   const [copiedVar, setCopiedVar] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [freePromptsUsed, setFreePromptsUsed] = useState<number>(0);
   const [isDeducted, setIsDeducted] = useState(false);
 
   if (!image) return null;
@@ -29,30 +30,28 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
                  image.aiModels.some(m => !m.toLowerCase().includes('gemini'));
 
   useEffect(() => {
-    const fetchWallet = async () => {
+    const fetchUserData = async () => {
       if (!auth.currentUser) return;
       try {
         const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
         if (userDoc.exists()) {
-          setWalletBalance(userDoc.data().walletBalance || 0);
+          const data = userDoc.data();
+          setWalletBalance(data.walletBalance || 0);
+          setFreePromptsUsed(data.freePromptsUsed || 0);
         }
       } catch (error) {
-        console.error("Error fetching wallet:", error);
+        console.error("Error fetching user data:", error);
       }
     };
-    fetchWallet();
+    fetchUserData();
 
     const incrementViews = async () => {
-      const newViews = (image.views || 0) + 1;
       const targetCollection = image.collection || activeTab || systemType;
       
-      const cleanImage = Object.fromEntries(Object.entries(image).filter(([_, v]) => v !== undefined));
-
       try {
-        await setDoc(doc(db, targetCollection, image.id), {
-          ...cleanImage,
-          views: newViews
-        }, { merge: true });
+        await updateDoc(doc(db, targetCollection, image.id), {
+          views: (image.views || 0) + 1
+        });
       } catch (error) {
         console.error("Error updating views:", error);
       }
@@ -64,6 +63,37 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
   const deductCredits = async () => {
     if (!auth.currentUser || !isPaid || isDeducted) return true;
     
+    // Check if user has free prompts left
+    if (freePromptsUsed < 10) {
+      try {
+        const userRef = doc(db, 'users', auth.currentUser.uid);
+        const newFreeUsed = freePromptsUsed + 1;
+        await updateDoc(userRef, {
+          freePromptsUsed: newFreeUsed
+        });
+        
+        await addDoc(collection(db, 'users', auth.currentUser.uid, 'transactions'), {
+          amount: 0,
+          type: 'Free Unlock',
+          isCredit: false,
+          status: 'completed',
+          title: `Free Access: ${image.title}`,
+          date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+          timestamp: new Date().toISOString(),
+          description: `Used 1 of 10 free prompts for ${image.type === 'video' ? 'video' : 'image'} access`,
+          createdAt: new Date().toISOString()
+        });
+
+        setFreePromptsUsed(newFreeUsed);
+        setIsDeducted(true);
+        return true;
+      } catch (error) {
+        console.error("Error using free prompt:", error);
+        alert("Something went wrong. Please try again.");
+        return false;
+      }
+    }
+
     if (walletBalance === null) return false;
     if (walletBalance < 3) {
       alert("Insufficient balance! Please add ₹3 to your wallet to access this premium content.");
@@ -181,13 +211,9 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
       const newLikes = (image.likes || 0) + (newLikedState ? 1 : -1);
       const targetCollection = image.collection || activeTab || systemType;
       
-      // Remove undefined values to prevent Firestore errors
-      const cleanImage = Object.fromEntries(Object.entries(image).filter(([_, v]) => v !== undefined));
-
-      await setDoc(doc(db, targetCollection, image.id), {
-        ...cleanImage,
+      await updateDoc(doc(db, targetCollection, image.id), {
         likes: newLikes
-      }, { merge: true });
+      });
     } catch (error) {
       console.error("Error updating like:", error);
     }
@@ -260,7 +286,7 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
                   ? "bg-amber-600/20 text-amber-400 border-amber-500/30" 
                   : "bg-indigo-600/20 text-indigo-400 border-indigo-500/30"
               )}>
-                {isPaid ? '₹3' : 'Free'}
+                {isPaid ? (freePromptsUsed < 10 ? `Free (${10 - freePromptsUsed} left)` : '₹3') : 'Free'}
               </div>
             </div>
             
@@ -289,7 +315,7 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
               )}
             >
               {isPaid && !isDeducted ? <ShoppingCart size={18} /> : <Download size={18} />}
-              {isDownloading ? 'Downloading...' : isPaid && !isDeducted ? 'Pay ₹3 to Unlock & Download' : 'Download Media'}
+              {isDownloading ? 'Downloading...' : isPaid && !isDeducted ? (freePromptsUsed < 10 ? `Unlock for Free (${10 - freePromptsUsed} left)` : 'Pay ₹3 to Unlock & Download') : 'Download Media'}
             </button>
             <div className="flex gap-3">
               <button 
@@ -345,14 +371,16 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
                 <div className="space-y-2">
                   <h3 className="text-lg font-bold text-white">Prompts are Locked</h3>
                   <p className="text-zinc-500 text-sm leading-relaxed max-w-[280px] mx-auto">
-                    Pay ₹3 to unlock the generation prompt, variable prompt, and download the media.
+                    {freePromptsUsed < 10 
+                      ? `You have ${10 - freePromptsUsed} free unlocks left. Unlock this prompt for free!`
+                      : "Pay ₹3 to unlock the generation prompt, variable prompt, and download the media."}
                   </p>
                 </div>
                 <button 
                   onClick={deductCredits}
                   className="w-full max-w-[200px] py-3 bg-[#1a1a1a] hover:bg-[#252525] text-white font-bold rounded-xl transition-all active:scale-95 border border-zinc-800"
                 >
-                  Pay ₹3 from Wallet
+                  {freePromptsUsed < 10 ? 'Unlock for Free' : 'Pay ₹3 from Wallet'}
                 </button>
               </motion.div>
             ) : (
