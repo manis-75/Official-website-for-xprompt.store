@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Heart, Eye, Download, Share2, Copy, Check, ShoppingCart, Lock, Sparkles } from 'lucide-react';
+import { X, Heart, Eye, Download, Share2, Sparkles, Copy, Check } from 'lucide-react';
 import { ImageItem, AI_WEBSITE_LOGOS } from '../constants';
 import { db, auth } from '../lib/firebase';
-import { doc, setDoc, getDoc, updateDoc, collection, addDoc } from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from '../lib/errorHandling';
+import { doc, setDoc } from 'firebase/firestore';
 import { ProtectedImage } from './ProtectedImage';
 
 interface ImageModalProps {
@@ -19,32 +18,8 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
   const [isDownloading, setIsDownloading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedVar, setCopiedVar] = useState(false);
-  const [isPaid, setIsPaid] = useState(false);
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [showQR, setShowQR] = useState(false);
 
   if (!image) return null;
-
-  let price = image.price ?? 0;
-  if (systemType === 'Library') price = 0;
-  
-  useEffect(() => {
-    const checkPurchase = async () => {
-      if (auth.currentUser && price > 0 && systemType !== 'Library') {
-        try {
-          const docRef = doc(db, 'users', auth.currentUser.uid, 'purchases', image.id);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            setIsPaid(true);
-          }
-        } catch (error) {
-          console.error("Error checking purchase:", error);
-          handleFirestoreError(error, OperationType.GET, `users/${auth.currentUser.uid}/purchases/${image.id}`);
-        }
-      }
-    };
-    checkPurchase();
-  }, [image.id, price, systemType]);
 
   useEffect(() => {
     const incrementViews = async () => {
@@ -83,82 +58,6 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
     }
   };
 
-  const handleWalletPayment = async () => {
-    if (!auth.currentUser) {
-      alert("Please log in to make a purchase.");
-      return;
-    }
-    setIsProcessingPayment(true);
-    
-    try {
-      const userRef = doc(db, 'users', auth.currentUser.uid);
-      const userSnap = await getDoc(userRef);
-      
-      let currentBalance = 0;
-      if (userSnap.exists()) {
-        currentBalance = userSnap.data().walletBalance || 0;
-      }
-
-      if (currentBalance < price) {
-        alert(`Insufficient wallet balance. You need ₹${price} but have ₹${currentBalance}. Please add funds to your wallet first.`);
-        setIsProcessingPayment(false);
-        return;
-      }
-
-      const newBalance = currentBalance - price;
-
-      // Update wallet balance
-      await setDoc(userRef, {
-        walletBalance: newBalance
-      }, { merge: true });
-      
-      // Add transaction record
-      await addDoc(collection(db, 'users', auth.currentUser.uid, 'transactions'), {
-        title: `Purchased: ${image.title}`,
-        date: new Date().toLocaleString(),
-        type: 'purchase',
-        amount: -price,
-        balance: newBalance,
-        isCredit: false,
-        timestamp: new Date(),
-        paymentMethod: 'Wallet'
-      });
-      
-      // Remove undefined values from image to prevent Firestore errors
-      const cleanImage = Object.fromEntries(Object.entries(image).filter(([_, v]) => v !== undefined));
-
-      // Save to Library
-      await setDoc(doc(db, 'users', auth.currentUser.uid, 'purchases', image.id), {
-        ...cleanImage,
-        purchasedAt: new Date().toISOString()
-      });
-
-      const newSales = (image.sales || 0) + 1;
-      const targetCollection = image.collection || activeTab || systemType;
-      
-      const purchaseData = {
-        ...cleanImage,
-        isPurchasedBySomeone: true,
-        purchasedAt: new Date().toISOString(),
-        sales: newSales
-      };
-      
-      try {
-        await setDoc(doc(db, targetCollection, image.id), purchaseData, { merge: true });
-      } catch (err) {
-        console.error("Failed to update sales:", err);
-      }
-      
-      setIsPaid(true);
-      setShowQR(false);
-    } catch (error) {
-      console.error("Payment error:", error);
-      handleFirestoreError(error, OperationType.WRITE, `users/${auth.currentUser.uid}`);
-    } finally {
-      setIsProcessingPayment(false);
-    }
-  };
-
   const handleDownload = async () => {
     if (isDownloading) return;
     setIsDownloading(true);
@@ -184,11 +83,7 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
   };
 
   const handleActionClick = () => {
-    if (price > 0 && !isPaid) {
-      handleWalletPayment();
-    } else {
-      handleDownload();
-    }
+    handleDownload();
   };
 
   const handleShare = async () => {
@@ -294,7 +189,7 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
             <div className="flex items-start justify-between mb-2">
               <h2 className="text-xl font-bold text-white">{image.title}</h2>
               <div className="bg-indigo-600/20 text-indigo-400 px-3 py-1 rounded-full text-sm font-bold border border-indigo-500/30 shrink-0 ml-4">
-                {(!image.aiModels || image.aiModels.length === 0 || image.aiModels.includes('Gemini')) ? 'Free' : '$1'}
+                Free
               </div>
             </div>
             
@@ -307,10 +202,6 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
                 <Heart size={16} className={isLiked ? "text-pink-500 fill-pink-500" : "text-pink-500"} />
                 <span>{displayLikes.toLocaleString()} likes</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <ShoppingCart size={16} className="text-emerald-500" />
-                <span>{image.sales?.toLocaleString() || 0} sales</span>
-              </div>
             </div>
           </div>
 
@@ -318,11 +209,11 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
           <div className="flex flex-col gap-3">
             <button 
               onClick={handleActionClick}
-              disabled={isDownloading || isProcessingPayment}
+              disabled={isDownloading}
               className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 px-4 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
             >
-              {price > 0 && !isPaid ? <ShoppingCart size={18} /> : <Download size={18} />}
-              {isDownloading ? 'Downloading...' : isProcessingPayment ? 'Processing Payment...' : (price > 0 && !isPaid ? `Pay ₹${price} to Unlock & Download` : 'Download Media')}
+              <Download size={18} />
+              {isDownloading ? 'Downloading...' : 'Download Media'}
             </button>
             <div className="flex gap-3">
               <button 
@@ -362,76 +253,57 @@ export const ImageModal = ({ image, onClose, systemType = 'Explore', activeTab }
 
           {/* Prompts */}
           <div className="space-y-6 pb-8">
-            {price > 0 && !isPaid ? (
-              <div className="bg-black/50 p-8 rounded-xl border border-white/5 flex flex-col items-center justify-center text-center gap-4 relative overflow-hidden">
-                <Lock size={32} className="text-zinc-500 relative z-10" />
-                <div className="relative z-10">
-                  <h3 className="text-white font-medium mb-1">Prompts are Locked</h3>
-                  <p className="text-zinc-400 text-sm">Pay ₹{price} to unlock the generation prompt, variable prompt, and download the media.</p>
-                </div>
-                <button 
-                  onClick={handleWalletPayment} 
-                  disabled={isProcessingPayment}
-                  className="relative z-10 mt-2 bg-white/10 hover:bg-white/20 text-white py-2 px-6 rounded-lg text-sm font-medium transition-colors"
-                >
-                  {isProcessingPayment ? 'Processing...' : `Pay ₹${price} from Wallet`}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Prompt</h3>
+                <button onClick={handleCopyPrompt} className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                  {copied ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
+                  <span className="text-xs">{copied ? 'Copied' : 'Copy'}</span>
                 </button>
               </div>
-            ) : (
-              <>
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Prompt</h3>
-                    <button onClick={handleCopyPrompt} className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
-                      {copied ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
-                      <span className="text-xs">{copied ? 'Copied' : 'Copy'}</span>
-                    </button>
-                  </div>
-                  <div className="bg-black/50 p-4 rounded-xl border border-white/5">
-                    <p className="text-zinc-300 text-sm leading-relaxed">
-                      {image.prompt || "No prompt available."}
-                    </p>
-                  </div>
+              <div className="bg-black/50 p-4 rounded-xl border border-white/5">
+                <p className="text-zinc-300 text-sm leading-relaxed">
+                  {image.prompt || "No prompt available."}
+                </p>
+              </div>
+            </div>
+
+            {image.variablePrompt && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Variable Prompt</h3>
+                  <button onClick={handleCopyVarPrompt} className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                    {copiedVar ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
+                    <span className="text-xs">{copiedVar ? 'Copied' : 'Copy'}</span>
+                  </button>
                 </div>
+                <div className="bg-black/50 p-4 rounded-xl border border-white/5">
+                  <p className="text-zinc-400 text-sm font-mono">
+                    {image.variablePrompt}
+                  </p>
+                </div>
+              </div>
+            )}
 
-                {image.variablePrompt && (
+            {(image.version || image.seed) && (
+              <div className="grid grid-cols-2 gap-4">
+                {image.version && (
                   <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Variable Prompt</h3>
-                      <button onClick={handleCopyVarPrompt} className="text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
-                        {copiedVar ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
-                        <span className="text-xs">{copiedVar ? 'Copied' : 'Copy'}</span>
-                      </button>
-                    </div>
-                    <div className="bg-black/50 p-4 rounded-xl border border-white/5">
-                      <p className="text-zinc-400 text-sm font-mono">
-                        {image.variablePrompt}
-                      </p>
+                    <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Version</h3>
+                    <div className="bg-zinc-800/50 px-3 py-2 rounded-lg border border-white/5 text-zinc-300 text-sm">
+                      {image.version}
                     </div>
                   </div>
                 )}
-
-                {(image.version || image.seed) && (
-                  <div className="grid grid-cols-2 gap-4">
-                    {image.version && (
-                      <div>
-                        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Version</h3>
-                        <div className="bg-zinc-800/50 px-3 py-2 rounded-lg border border-white/5 text-zinc-300 text-sm">
-                          {image.version}
-                        </div>
-                      </div>
-                    )}
-                    {image.seed && (
-                      <div>
-                        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Seed</h3>
-                        <div className="bg-zinc-800/50 px-3 py-2 rounded-lg border border-white/5 text-zinc-300 text-sm">
-                          {image.seed}
-                        </div>
-                      </div>
-                    )}
+                {image.seed && (
+                  <div>
+                    <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Seed</h3>
+                    <div className="bg-zinc-800/50 px-3 py-2 rounded-lg border border-white/5 text-zinc-300 text-sm">
+                      {image.seed}
+                    </div>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>

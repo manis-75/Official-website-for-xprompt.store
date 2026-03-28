@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Image as ImageIcon, CheckCircle, AlertCircle, Link as LinkIcon, Sparkles, Video, ChevronDown, X } from 'lucide-react';
 import { db } from '../lib/firebase';
-import { collection, addDoc, getDocs, updateDoc, doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, updateDoc, doc, getDoc, setDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { GoogleGenAI, Type } from "@google/genai";
+import { Trash2, Database, Search } from 'lucide-react';
 import { IMAGE_AI_WEBSITES, VIDEO_AI_WEBSITES, AI_MODEL_VERSIONS } from '../constants';
 
 const CATEGORIES = [
@@ -141,7 +142,12 @@ const CATEGORIES = [
 ];
 
 export const AdminPanel = () => {
-  const [activeTab, setActiveTab] = useState<'upload'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'database'>('upload');
+  const [selectedDbCategory, setSelectedDbCategory] = useState<string | null>(null);
+  const [dbItems, setDbItems] = useState<any[]>([]);
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
+  const [isLoadingDb, setIsLoadingDb] = useState(false);
+  const [dbSearch, setDbSearch] = useState('');
   
   const [category, setCategory] = useState(CATEGORIES[0].id);
   const [title, setTitle] = useState('');
@@ -166,12 +172,103 @@ export const AdminPanel = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
-    setSelectedAIModels([]);
-  }, [mediaType]);
-
-  useEffect(() => {
-    // No longer fetching payment requests
+    if (activeTab === 'database') {
+      fetchCategoryCounts();
+    }
   }, [activeTab]);
+
+  const fetchCategoryCounts = async () => {
+    setIsLoadingDb(true);
+    try {
+      const counts: Record<string, number> = {};
+      
+      // 1. Fetch Explore collection counts
+      const exploreSnap = await getDocs(collection(db, 'Explore'));
+      exploreSnap.docs.forEach(doc => {
+        const data = doc.data();
+        const cat = data.category || 'Explore';
+        counts[cat] = (counts[cat] || 0) + 1;
+      });
+
+      // 2. Fetch other collections counts
+      const exploreSubCategories = CATEGORIES.filter(c => 
+        ![ "Explore", ...CATEGORIES.filter(cat => cat.id.includes(':')).map(cat => cat.id) ].includes(c.id)
+      ).map(c => c.id);
+      
+      const otherCollections = CATEGORIES.filter(c => 
+        !exploreSubCategories.includes(c.id) && c.id !== 'Explore'
+      ).map(c => c.id);
+
+      for (const colId of otherCollections) {
+        try {
+          const snap = await getDocs(collection(db, colId));
+          counts[colId] = snap.size;
+        } catch (e) {
+          console.warn(`Failed to fetch count for collection ${colId}`, e);
+        }
+      }
+
+      setCategoryCounts(counts);
+    } catch (err) {
+      console.error("Error fetching category counts:", err);
+    } finally {
+      setIsLoadingDb(false);
+    }
+  };
+
+  const fetchItemsByCategory = async (catId: string) => {
+    setIsLoadingDb(true);
+    setSelectedDbCategory(catId);
+    try {
+      let items: any[] = [];
+      const exploreSubCategories = [
+        "Fashion Model", "Fitness Model", "Glamour Model", "Traditional Model", "Casual Lifestyle",
+        "Product Ads", "Fashion Ads", "Fitness Ads", "Beauty Ads", "Food Ads", "Tech Ads", 
+        "Business Ads", "Social Ads", "Story Ads", "Global Style", "Luxury Ads", "Ecom Ads",
+        "Gaming", "Stock Market", "Personal Finance", "Tech", "Vlogging", "Cricket", "Movies", 
+        "Web Series", "Comedy", "Podcast", "Fitness", "Motivation", "Education", "Online Earning", 
+        "Business Ideas", "Automobile", "Cooking", "Real Estate", "Spirituality", "Fashion", 
+        "Beauty", "Parenting", "Coding", "Graphic Design", "Photography", "Travel", "News", 
+        "Science", "AI", "Government Schemes"
+      ];
+
+      if (exploreSubCategories.includes(catId) || catId === 'Explore') {
+        const q = catId === 'Explore' 
+          ? query(collection(db, 'Explore'), where('category', '==', ''))
+          : query(collection(db, 'Explore'), where('category', '==', catId));
+        
+        const snap = await getDocs(q);
+        items = snap.docs.map(doc => ({ id: doc.id, ...doc.data(), collection: 'Explore' }));
+      } else {
+        const snap = await getDocs(collection(db, catId));
+        items = snap.docs.map(doc => ({ id: doc.id, ...doc.data(), collection: catId }));
+      }
+      setDbItems(items);
+    } catch (err) {
+      console.error("Error fetching items:", err);
+    } finally {
+      setIsLoadingDb(false);
+    }
+  };
+
+  const handleDeleteItem = async (itemId: string, collectionName: string) => {
+    if (!window.confirm('Are you sure you want to delete this item?')) return;
+    
+    try {
+      await deleteDoc(doc(db, collectionName, itemId));
+      setDbItems(prev => prev.filter(item => item.id !== itemId));
+      // Update counts
+      if (selectedDbCategory) {
+        setCategoryCounts(prev => ({
+          ...prev,
+          [selectedDbCategory]: Math.max(0, (prev[selectedDbCategory] || 1) - 1)
+        }));
+      }
+    } catch (err) {
+      console.error("Error deleting item:", err);
+      alert("Failed to delete item.");
+    }
+  };
 
   const handleApprovePayment = async (request: any) => {
     // No longer used
@@ -408,14 +505,8 @@ export const AdminPanel = () => {
         ? prev.filter(m => m !== model) 
         : [...prev, model];
       
-      // Auto-set price based on selection
-      if (newModels.length === 0) {
-        setPrice(0);
-      } else if (newModels.includes('Gemini')) {
-        setPrice(0);
-      } else {
-        setPrice(1); // $1 for other models
-      }
+      // Price is always 0
+      setPrice(0);
       
       return newModels;
     });
@@ -533,6 +624,16 @@ export const AdminPanel = () => {
             }`}
           >
             Media Upload
+          </button>
+          <button
+            onClick={() => setActiveTab('database')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-medium transition-all ${
+              activeTab === 'database' 
+                ? 'bg-white text-black shadow-lg' 
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            Database
           </button>
         </div>
       </div>
@@ -905,8 +1006,110 @@ export const AdminPanel = () => {
             </button>
           </div>
         </form>
-      </div>
-    )}
-  </div>
-);
+        </div>
+      )}
+
+      {activeTab === 'database' && (
+        <div className="space-y-8">
+          {!selectedDbCategory ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {CATEGORIES.map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => fetchItemsByCategory(cat.id)}
+                  className="bg-zinc-900 border border-white/10 p-6 rounded-2xl hover:border-indigo-500/50 transition-all text-left group"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-white font-semibold group-hover:text-indigo-400 transition-colors">{cat.label}</span>
+                    <Database size={18} className="text-zinc-500 group-hover:text-indigo-400" />
+                  </div>
+                  <div className="text-zinc-500 text-sm">
+                    {categoryCounts[cat.id] || 0} Items
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <button 
+                  onClick={() => setSelectedDbCategory(null)}
+                  className="text-zinc-400 hover:text-white flex items-center gap-2 transition-colors"
+                >
+                  <ChevronDown className="rotate-90" size={20} />
+                  Back to Categories
+                </button>
+                <div className="flex items-center gap-4">
+                  <h2 className="text-xl font-bold text-white">{selectedDbCategory}</h2>
+                  <span className="px-3 py-1 bg-indigo-500/20 text-indigo-400 rounded-full text-xs font-bold">
+                    {dbItems.length} Items
+                  </span>
+                </div>
+              </div>
+
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+                <input
+                  type="text"
+                  placeholder="Search in this category..."
+                  value={dbSearch}
+                  onChange={(e) => setDbSearch(e.target.value)}
+                  className="w-full bg-zinc-900 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              {isLoadingDb ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                  <p className="text-zinc-400">Loading database items...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {dbItems
+                    .filter(item => item.title?.toLowerCase().includes(dbSearch.toLowerCase()))
+                    .map(item => (
+                    <div key={item.id} className="bg-zinc-900 border border-white/10 rounded-2xl overflow-hidden group">
+                      <div className="aspect-[4/5] relative">
+                        {item.type === 'video' ? (
+                          <div className="w-full h-full bg-black flex items-center justify-center">
+                            <Video size={40} className="text-indigo-500" />
+                          </div>
+                        ) : (
+                          <img 
+                            src={item.url} 
+                            alt={item.title} 
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                          <button
+                            onClick={() => handleDeleteItem(item.id, item.collection)}
+                            className="p-3 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors shadow-lg"
+                            title="Delete Item"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <h3 className="text-white font-medium truncate mb-1">{item.title}</h3>
+                        <p className="text-zinc-500 text-xs truncate">{item.url}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {dbItems.length === 0 && (
+                    <div className="col-span-full py-20 text-center bg-zinc-900/50 rounded-3xl border border-dashed border-white/10">
+                      <Database size={48} className="mx-auto mb-4 text-zinc-700" />
+                      <p className="text-zinc-500">No items found in this category.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 };

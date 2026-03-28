@@ -11,12 +11,10 @@ import { Auth } from './components/Auth';
 import { AdminPanel } from './components/AdminPanel';
 import { Settings } from './components/Settings';
 import { AccountDetails } from './components/AccountDetails';
-import Pricing from './components/Pricing';
-import Wallet from './components/Wallet';
 import { cn } from './lib/utils';
 import { auth, db } from './lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
 export interface UserProfile {
   uid: string;
@@ -24,6 +22,8 @@ export interface UserProfile {
   email: string;
   role: string;
   photoURL?: string | null;
+  phoneNumber?: string | null;
+  phoneVerified?: boolean;
 }
 
 export default function App() {
@@ -85,10 +85,15 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         let role = 'user';
+        let phoneVerified = false;
+        let phoneNumber = null;
         try {
           const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
           if (userDoc.exists()) {
-            role = userDoc.data().role || 'user';
+            const userData = userDoc.data();
+            role = userData.role || 'user';
+            phoneVerified = userData.phoneVerified || false;
+            phoneNumber = userData.phoneNumber || null;
           }
         } catch (error) {
           console.error("Error fetching user role:", error);
@@ -100,9 +105,19 @@ export default function App() {
           email: currentUser.email || '',
           role: role,
           photoURL: currentUser.photoURL,
+          phoneNumber: phoneNumber,
+          phoneVerified: phoneVerified,
         });
+
+        /* 
+        // Show phone verification if not verified
+        if (!phoneVerified) {
+          // setShowPhoneVerification(true);
+        }
+        */
       } else {
         setUser(null);
+        // setShowPhoneVerification(false);
       }
       setIsLoading(false);
     });
@@ -159,13 +174,16 @@ export default function App() {
         {(activeTab.startsWith('Trending') || activeTab.startsWith('All Category') || activeTab === 'Thumbnail') && <YoutubeThumbnail activeTab={activeTab} />}
         {(activeTab.startsWith('Logo Prompt') || activeTab.startsWith('Icon Prompt') || activeTab === 'Logo Image') && <IconImage activeTab={activeTab} />}
         {activeTab === 'Admin Panel' && user?.role === 'admin' && <AdminPanel />}
-        {activeTab === 'Settings' && user && <Settings user={user} />}
+        {activeTab === 'Settings' && user && (
+          <Settings 
+            user={user} 
+            onUpdateUser={(updatedData) => setUser(prev => prev ? { ...prev, ...updatedData } : null)} 
+          />
+        )}
         {activeTab === 'Account Details' && user && <AccountDetails user={user} onNavigate={setActiveTab} />}
-        {activeTab === 'Plans' && <Pricing onLoginClick={() => setShowAuth(true)} />}
-        {activeTab === 'Wallet' && <Wallet onLoginClick={() => setShowAuth(true)} />}
         {activeTab !== 'Home' && activeTab !== 'Library' && activeTab !== 'Explore' && !activeTab.startsWith('AI Influencer') && activeTab !== 'Model' && !activeTab.startsWith('Ad Templates') && activeTab !== 'Ad Studio' && 
          !activeTab.startsWith('Trending') && !activeTab.startsWith('All Category') && activeTab !== 'Thumbnail' && 
-         !activeTab.startsWith('Logo Prompt') && !activeTab.startsWith('Icon Prompt') && activeTab !== 'Logo Image' && activeTab !== 'Admin Panel' && activeTab !== 'Settings' && activeTab !== 'Account Details' && activeTab !== 'Plans' && activeTab !== 'Wallet' && (
+         !activeTab.startsWith('Logo Prompt') && !activeTab.startsWith('Icon Prompt') && activeTab !== 'Logo Image' && activeTab !== 'Admin Panel' && activeTab !== 'Settings' && activeTab !== 'Account Details' && (
           <div className="flex items-center justify-center h-full text-zinc-500">
             <p className="text-xl font-medium">{activeTab} Section Coming Soon</p>
           </div>
